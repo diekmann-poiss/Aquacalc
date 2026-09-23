@@ -846,8 +846,8 @@ function initEventListeners() {
     // Plant search
     document.getElementById('plantSearch').addEventListener('input', updatePlantSearch);
     
-    // Plant selection from dropdown
-    document.getElementById('plantSelect').addEventListener('click', (e) => {
+    // Plant selection from dropdown - FIXED: use 'change' event instead of 'click'
+    document.getElementById('plantSelect').addEventListener('change', (e) => {
         if (e.target.value) {
             state.plant.selected = e.target.value;
             state.plant.customKc = null;
