@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaCalc - Irrigation Water Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AquaCalc</h1>
+            <div class="header-controls">
+                <select class="language-selector" id="languageSelect">
+                    <option value="en">EN</option>
+                    <option value="de">DE</option>
+                    <option value="es">ES</option>
+                </select>
+                <button class="theme-toggle" id="themeToggle">Toggle Dark Mode</button>
+                <button class="info-panel-toggle" id="infoToggle">Info</button>
+            </div>
+        </header>
+        
+        <div class="tab-container">
+            <button class="tab active" data-tab="site">Site</button>
+            <button class="tab" data-tab="plant">Plant</button>
+            <button class="tab" data-tab="results">Results</button>
+            <button class="tab" data-tab="projects">Projects</button>
+        </div>
+        
+        <!-- Site Tab -->
+        <div class="tab-content active" id="siteTab">
+            <div class="form-section">
+                <h2>Site Selection</h2>
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="country">Country</label>
+                            <select id="country">
+                                <option value="AT">Austria</option>
+                                <option value="DE">Germany</option>
+                                <option value="CH">Switzerland</option>
+                                <option value="other">Other Europe</option>
+                            </select>
+                        </div>
+                        <div class="col">
+                            <div class="form-group">
+                                <label for="city">City</label>
+                                <select id="city">
+                                    <option value="">Select a city...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                
+                <div class="climate-card" id="climateCard">
+                    <h3>Climate Data</h3>
+                    <p>Select a city to view its climate data (Reference Evapotranspiration ET₀ and Rainfall).</p>
+                    
+                    <!-- Climate Chart Container -->
+                    <div class="climate-chart-container" id="climateChartContainer" style="display: none;">
+                        <canvas id="climateChart"></canvas>
+                    </div>
+                    
+                    <!-- Climate Data List -->
+                    <div class="monthly-list" id="climateListContainer" style="display: none;">
+                        <table id="climateDataTable">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>ET₀ (mm)</th>
+                                    <th>Rain (mm)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="climateDataList">
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Original Climate Grid (fallback) -->
+                    <div class="climate-grid" id="climateData"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Plant Tab -->
+        <div class="tab-content" id="plantTab">
+            <div class="form-section">
+                <h2>Plant Selection</h2>
+                
+                <div class="form-group">
+                    <label>Quick Presets</label>
+                    <div class="preset-buttons" id="presetButtons">
+                        <button class="preset-btn" data-preset="street_trees">Street & Shade Trees</button>
+                        <button class="preset-btn" data-preset="conifers">Conifers</button>
+                        <button class="preset-btn" data-preset="climbers">Climbers / Facade</button>
+                        <button class="preset-btn" data-preset="hedges">Hedges & Shrubs</button>
+                        <button class="preset-btn" data-preset="ground_cover">Ground Cover</button>
+                        <button class="preset-btn" data-preset="ornamental_grasses">Ornamental Grasses</button>
+                        <button class="preset-btn" data-preset="perennials_wet">Wet Perennials</button>
+                        <button class="preset-btn" data-preset="perennials_medium">Medium Perennials</button>
+                        <button class="preset-btn" data-preset="perennials_dry">Dry Perennials</button>
+                        <button class="preset-btn" data-preset="lawn">Lawn</button>
+                        <button class="preset-btn" data-preset="seasonal_bedding">Seasonal Bedding</button>
+                        <button class="preset-btn" data-preset="grapevines">Grapevines</button>
+                    </div>
+                    <div id="presetInfo"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="plantSearch">Search Plant (Common or Botanical Name)</label>
+                    <input type="text" id="plantSearch" placeholder="e.g., Tilia cordata, Lavandula, Sedum">
+                    <select id="plantSelect" size="5" style="margin-top: 10px;">
+                        <option value="">Search results will appear here...</option>
+                    </select>
+                </div>
+                
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="customKc">Or use custom Kc value</label>
+                            <input type="number" id="customKc" step="0.01" min="0" max="2" placeholder="Enter Kc value">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="area">Area (m²)</label>
+                            <input type="number" id="area" step="0.1" min="0" value="10">
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="situation">Planting Situation</label>
+                            <select id="situation">
+                                <option value="open">Open</option>
+                                <option value="wall">Against a wall</option>
+                                <option value="overhang">Under an overhang</option>
+                                <option value="roofed">Roofed</option>
+                                <option value="shaded">Shaded / North side</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Tab -->
+        <div class="tab-content" id="resultsTab">
+            <div class="form-section">
+                <h2>Calculation Results</h2>
+                
+                <div class="results-grid" id="mainResults">
+                    <div class="result-card">
+                        <h3>Annual Water Need</h3>
+                        <div class="result-value" id="annualWater">-</div>
+                        <p>litres</p>
+                    </div>
+                    <div class="result-card">
+                        <h3>Peak Month</h3>
+                        <div class="result-value" id="peakMonth">-</div>
+                        <p id="peakMonthValue">-</p>
+                    </div>
+                    <div class="result-card">
+                        <h3>Peak Month Need</h3>
+                        <div class="result-value" id="peakNeed">-</div>
+                        <p>litres</p>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+                
+                <div class="form-group">
+                    <label>Monthly Water Balance Table</label>
+                    <div style="overflow-x: auto;">
+                        <table id="resultsTable">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th><span class="tooltip">ET₀ (mm)
+                                        <span class="tooltiptext">Reference Evapotranspiration</span>
+                                    </span></th>
+                                    <th><span class="tooltip">Kc
+                                        <span class="tooltiptext">Crop Coefficient</span>
+                                    </span></th>
+                                    <th><span class="tooltip">ETc (mm)
+                                        <span class="tooltiptext">Crop Evapotranspiration</span>
+                                    </span></th>
+                                    <th><span class="tooltip">Rain (mm)
+                                        <span class="tooltiptext">Monthly rainfall</span>
+                                    </span></th>
+                                    <th><span class="tooltip">Effective Rain (mm)
+                                        <span class="tooltiptext">Rainfall x 0.35 x rain factor</span>
+                                    </span></th>
+                                    <th><span class="tooltip">Net (mm)
+                                        <span class="tooltiptext">ETc - Effective Rain</span>
+                                    </span></th>
+                                    <th><span class="tooltip">Litres
+                                        <span class="tooltiptext">Net irrigation per m²</span>
+                                    </span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h3>Watering Plan</h3>
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label for="irrigationType">Irrigation Type</label>
+                                <select id="irrigationType">
+                                    <option value="drip">Drip line (5 days/week)</option>
+                                    <option value="soaker">Soaker hose (4 days/week)</option>
+                                    <option value="micro">Micro-sprayer (3 days/week)</option>
+                                    <option value="sprinkler">Pop-up sprinkler (2 days/week)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-group">
+                                <label for="pressure">Pressure (bar)</label>
+                                <select id="pressure">
+                                    <option value="2">2 bar</option>
+                                    <option value="4">4 bar</option>
+                                    <option value="6">6 bar</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="seasonal-plan" id="wateringPlan">
+                    </div>
+                </div>
+                
+                <div class="export-btns">
+                    <button class="btn" id="exportPDF">Export to PDF</button>
+                    <button class="btn btn-secondary" id="exportExcel">Export to Excel</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Projects Tab -->
+        <div class="tab-content" id="projectsTab">
+            <div class="form-section">
+                <h2>Projects</h2>
+                <p>Create and manage multiple planting beds for a complete site plan.</p>
+                
+                <div class="toolbar">
+                    <button class="btn" id="newProjectBtn">New Project</button>
+                    <button class="btn btn-secondary" id="saveProject">Save Current Project</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>Current Beds</label>
+                    <ul class="project-list" id="bedsList">
+                        <li style="padding: 10px; color: #777;">No beds yet. Create a bed to start.</li>
+                    </ul>
+                </div>
+                
+                <div class="form-section" id="bedForm" style="display: none;">
+                    <h3>Add/Edit Bed</h3>
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label for="bedName">Bed Name</label>
+                                <input type="text" id="bedName" placeholder="e.g., Front Garden, Roof Garden">
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-group">
+                                <label for="bedArea">Area (m²)</label>
+                                <input type="number" id="bedArea" step="0.1" min="0" value="10">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label for="bedSituation">Situation</label>
+                                <select id="bedSituation">
+                                    <option value="open">Open</option>
+                                    <option value="wall">Against a wall</option>
+                                    <option value="overhang">Under an overhang</option>
+                                    <option value="roofed">Roofed</option>
+                                    <option value="shaded">Shaded / North side</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Planting Cycles</label>
+                        <div id="plantingCycles">
+                        </div>
+                        <button class="btn btn-secondary" id="addPlantingCycle">+ Add Planting Cycle</button>
+                    </div>
+                    
+                    <div class="toolbar">
+                        <button class="btn" id="saveBed">Save Bed</button>
+                        <button class="btn btn-secondary" id="cancelBed">Cancel</button>
+                    </div>
+                </div>
+                
+                <div class="form-section" id="projectResults" style="display: none;">
+                    <h3>Project Summary</h3>
+                    <div class="results-grid" id="projectTotals">
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="projectChart"></canvas>
+                    </div>
+                    <div class="export-btns">
+                        <button class="btn" id="exportProjectPDF">Export Project to PDF</button>
+                        <button class="btn btn-secondary" id="exportProjectExcel">Export Project to Excel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Info Panel -->
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="info-panel" id="infoPanel">
+        <button class="close-btn" id="closeInfo">&times;</button>
+        <h2>AquaCalc - Irrigation Water Calculator</h2>
+        
+        <h3>About</h3>
+        <p>AquaCalc helps landscape professionals and gardeners calculate irrigation water requirements based on the FAO-56 method.</p>
+        
+        <h3>Methodology</h3>
+        <ul>
+            <li><strong>FAO Irrigation & Drainage Paper 56</strong> (Allen et al., 1998)</li>
+            <li><strong>ASCE-EWRI standardized reference ET equation</strong> (2005)</li>
+            <li><strong>WUCOLS landscape water-use classification</strong> (Costello et al., UC Cooperative Extension)</li>
+        </ul>
+        
+        <h3>Calculation Logic</h3>
+        <ul>
+            <li><strong>Crop water use:</strong> ETc = ET₀ &times; Kc &times; situation demand factor</li>
+            <li><strong>Effective rain:</strong> Rainfall &times; 0.35 &times; situation rain factor</li>
+            <li><strong>Net irrigation:</strong> ETc minus effective rain, never below zero</li>
+            <li><strong>Conversion:</strong> 1 mm over 1 m&sup2; = 1 litre</li>
+        </ul>
+        
+        <h3>Demand and Rain Factors by Situation</h3>
+        <table>
+            <thead>
+                <tr><th>Situation</th><th>Demand Factor</th><th>Rain Factor</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Open</td><td>1.0</td><td>1.0</td></tr>
+                <tr><td>Against a wall</td><td>1.15</td><td>0.75</td></tr>
+                <tr><td>Under an overhang</td><td>1.0</td><td>0.3</td></tr>
+                <tr><td>Roofed</td><td>0.9</td><td>0.0</td></tr>
+                <tr><td>Shaded / North side</td><td>0.7</td><td>0.9</td></tr>
+            </tbody>
+        </table>
+        
+        <h3>Climate Data Sources</h3>
+        <ul>
+            <li><strong>Austria:</strong> ZAMG (Zentralanstalt für Meteorologie und Geodynamik), Klimanormalperiode 1981-2010</li>
+            <li><strong>Germany:</strong> DWD (Deutscher Wetterdienst), Klimanormalperiode 1981-2010</li>
+            <li><strong>Switzerland:</strong> MeteoSwiss, Klimanormalperiode 1981-2010</li>
+            <li><strong>FAO CLIMWAT:</strong> Global cross-check for reference evapotranspiration and rainfall data. <a href="https://www.fao.org/land-water/databases-and-software/climwat/en/" target="_blank" style="color: var(--accent);">Access FAO CLIMWAT database</a></li>
+        </ul>
+        
+        <h3>Precise Climate Data - Open-Meteo</h3>
+        <p><em>Note: City climate values in this application are planning estimates following typical regional patterns for each city. They were not downloaded or checked station-by-station against the source institutions. The info panel lists the official reference sources, but the numbers themselves are estimates based on regional patterns.</em></p>
+        <p><em>For precise, location-specific climate data including ET₀ and rainfall, we recommend connecting to online climate services like <a href="https://open-meteo.com/" target="_blank" style="color: var(--accent);">Open-Meteo</a>.</em></p>
+        <p><em>Open-Meteo provides free weather and climate data for any location worldwide, including all European cities and German cities for each Bundesland, using the FAO-56 Penman-Monteith reference evapotranspiration method.</em></p>
+        
+        <h3>Kc Value Sources</h3>
+        <ul>
+            <li><strong>Primary:</strong> FAO Irrigation & Drainage Paper 56 (Allen et al., 1998) - Tab. 12 (various crops), Tab. 17 (trees)</li>
+            <li>Doorenbos, J.; Pruitt, W. O. (1977). 'Guidelines for predicting crop water requirements' - Climbing plants (Ivy, Grapevine)</li>
+            <li>Doorenbos, J.; Kassam, A. H. (1979). 'Yield response to water' - Trees (young/mature)</li>
+            <li>Pereira, L. S. et al. (2015). 'Crop Evapotranspiration: Principles and Design Applications' - Updated Kc values for grapevines and conifers</li>
+        </ul>
+        
+        <h3>Data Notes</h3>
+        <p><em>Kc values, situation factors, and flow rates are reasonable planning defaults, not measured data.</em></p>
+        <p><em>This implementation includes 17 cities and 15 plant types from the provided Excel data file. The original app description mentions ~70 cities and ~125 plant species, which may be in a more complete dataset.</em></p>
+        
+        <h3>Version</h3>
+        <p>1.0.0 - Web version based on the original AquaCalc application data</p>
+        
+        <h3>Created by</h3>
+        <p><strong>Max Poiss</strong></p>
+    </div>
+    
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
