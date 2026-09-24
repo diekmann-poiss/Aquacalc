@@ -841,12 +841,16 @@ function initEventListeners() {
     document.getElementById('city').addEventListener('change', (e) => {
         state.site.city = e.target.value;
         updateClimateCard();
+        // Auto-update results if plant is already selected
+        if (state.plant.selected || state.plant.customKc !== null) {
+            updateResults();
+        }
     });
     
     // Plant search
     document.getElementById('plantSearch').addEventListener('input', updatePlantSearch);
     
-    // Plant selection from dropdown - FIXED: use 'change' event instead of 'click'
+    // Plant selection from dropdown - FIXED: use 'change' event
     document.getElementById('plantSelect').addEventListener('change', (e) => {
         if (e.target.value) {
             state.plant.selected = e.target.value;
@@ -857,6 +861,10 @@ function initEventListeners() {
             document.querySelectorAll('.preset-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
+            // Auto-update results if city is already selected
+            if (state.site.city) {
+                updateResults();
+            }
         }
     });
     
@@ -871,17 +879,29 @@ function initEventListeners() {
             document.querySelectorAll('.preset-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
+            // Auto-update results if city is already selected
+            if (state.site.city) {
+                updateResults();
+            }
         }
     });
     
     // Area input
     document.getElementById('area').addEventListener('input', (e) => {
         state.plant.area = parseFloat(e.target.value) || 0;
+        // Auto-update results if city and plant are selected
+        if (state.site.city && (state.plant.selected || state.plant.customKc !== null)) {
+            updateResults();
+        }
     });
     
     // Situation change
     document.getElementById('situation').addEventListener('change', (e) => {
         state.plant.situation = e.target.value;
+        // Auto-update results if city and plant are selected
+        if (state.site.city && (state.plant.selected || state.plant.customKc !== null)) {
+            updateResults();
+        }
     });
     
     // Preset buttons - NOW WORKING WITH Kc VALUES
@@ -898,6 +918,11 @@ function initEventListeners() {
                 
                 // Show Kc information for this preset
                 updatePresetInfo(preset);
+                
+                // Auto-update results if city is already selected
+                if (state.site.city) {
+                    updateResults();
+                }
             }
         });
     });
@@ -993,6 +1018,11 @@ function init() {
     // For demo purposes, pre-select Vienna
     state.site.city = 'Wien';
     document.getElementById('city').value = 'Wien';
+    
+    // Update results with default selections
+    if (state.plant.selected && state.site.city) {
+        updateResults();
+    }
     updateClimateCard();
     
     console.log('AquaCalc initialized with climate chart and preset Kc display');
