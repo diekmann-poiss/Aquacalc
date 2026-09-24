@@ -3,12 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AquaCalc - FAO-56 Irrigation Water Calculator for landscape professionals and gardeners">
+    <meta name="keywords" content="irrigation, water, FAO-56, evapotranspiration, landscape, gardening, calculator">
+    <meta name="author" content="Max Poiss">
+    
     <title>AquaCalc - FAO-56 Irrigation Water Calculator</title>
+    
+    <!-- Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- HTML2Canvas for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <!-- Main stylesheet -->
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>">
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <header>
             <h1>AquaCalc</h1>
             <p class="subtitle">FAO-56 Species and Site-Specific Water Demand Calculator</p>
@@ -23,6 +38,7 @@
             </div>
         </header>
 
+        <!-- Tab Navigation -->
         <div class="tab-container">
             <button class="tab active" data-tab="site">Site</button>
             <button class="tab" data-tab="plant">Plant</button>
@@ -34,6 +50,7 @@
         <div class="tab-content active" id="siteTab">
             <div class="form-section">
                 <h2>Site Selection</h2>
+                <p>Select your location to view climate data including reference evapotranspiration (ET₀) and rainfall.</p>
                 
                 <div class="row">
                     <div class="col">
@@ -41,11 +58,6 @@
                             <label for="country">Country</label>
                             <select id="country" class="form-control">
                                 <option value="">Select Country</option>
-                                <option value="AT">Austria</option>
-                                <option value="DE">Germany</option>
-                                <option value="CH">Switzerland</option>
-                                <option value="other">Other Europe</option>
-                                <option value="world">Worldwide</option>
                             </select>
                         </div>
                     </div>
@@ -59,7 +71,16 @@
                     </div>
                 </div>
 
-                <!-- Climate Card -->
+                <!-- API Data Toggle (Future feature) -->
+                <div class="api-options" id="apiOptions" style="display: none;">
+                    <label>
+                        <input type="checkbox" id="useApiData">
+                        Use live climate data from Open-Meteo API
+                    </label>
+                    <span id="apiStatus"></span>
+                </div>
+
+                <!-- Climate Data Card -->
                 <div class="climate-card" id="climateCard" style="display: none;">
                     <h3>Climate Data</h3>
                     <div id="climateInfo"></div>
@@ -86,7 +107,9 @@
         <div class="tab-content" id="plantTab">
             <div class="form-section">
                 <h2>Plant Selection</h2>
+                <p>Choose what you're planting and its growing conditions.</p>
                 
+                <!-- Quick Presets -->
                 <div class="form-group">
                     <label>Quick Presets</label>
                     <div class="preset-buttons" id="presetButtons">
@@ -106,14 +129,16 @@
                     <div id="presetInfo" class="preset-info"></div>
                 </div>
 
+                <!-- Plant Search -->
                 <div class="form-group">
                     <label for="plantSearch">Search Plant (Common or Botanical Name)</label>
-                    <input type="text" id="plantSearch" class="form-control" placeholder="e.g., Tilia cordata, Lavandula, Sedum">
-                    <select id="plantSelect" class="form-control" size="5" style="margin-top: 10px;">
+                    <input type="text" id="plantSearch" class="form-control" placeholder="e.g., Tilia cordata, Lavandula, Sedum, Wheat, Maize">
+                    <select id="plantSelect" class="form-control" size="6" style="margin-top: 10px;">
                         <option value="">Type to search or select from presets...</option>
                     </select>
                 </div>
 
+                <!-- Area and Situation -->
                 <div class="row">
                     <div class="col">
                         <div class="form-group">
@@ -135,9 +160,11 @@
                     </div>
                 </div>
 
+                <!-- Custom Kc -->
                 <div class="form-group">
                     <label for="customKc">Or Use Custom Kc Value</label>
                     <input type="number" id="customKc" class="form-control" step="0.01" min="0" max="2" placeholder="Enter Kc value (0.0-2.0)">
+                    <small class="help-text">Kc (Crop Coefficient): Typical values range from 0.2 for desert plants to 1.2 for lush vegetation.</small>
                 </div>
             </div>
         </div>
@@ -146,7 +173,9 @@
         <div class="tab-content" id="resultsTab">
             <div class="form-section">
                 <h2>Calculation Results</h2>
+                <p>Water demand based on FAO-56 Penman-Monteith method.</p>
                 
+                <!-- Main Results -->
                 <div class="results-grid" id="mainResults">
                     <div class="result-card">
                         <h3>Annual Water Need</h3>
@@ -165,12 +194,15 @@
                     </div>
                 </div>
 
+                <!-- Monthly Chart -->
                 <div class="chart-container">
                     <canvas id="monthlyChart"></canvas>
                 </div>
 
+                <!-- Results Table -->
                 <div class="form-group">
                     <label>Monthly Water Balance Table</label>
+                    <small class="help-text">ETc = ET₀ × Kc × Situation Factor | Effective Rain = Rain × 0.8 × Situation Rain Factor | Net = ETc - Effective Rain (minimum 0)</small>
                     <div class="table-container">
                         <table id="resultsTable">
                             <thead>
@@ -192,8 +224,10 @@
                     </div>
                 </div>
 
+                <!-- Watering Plan -->
                 <div class="form-group">
                     <label>Seasonal Watering Plan</label>
+                    <small class="help-text">Based on peak month demand, with seasonal adjustments.</small>
                     <div class="watering-plan" id="wateringPlan">
                         <div class="row">
                             <div class="col">
@@ -220,9 +254,10 @@
                     </div>
                 </div>
 
+                <!-- Export Buttons -->
                 <div class="export-buttons">
-                    <button id="exportPDF" class="btn">Export to PDF</button>
-                    <button id="exportExcel" class="btn">Export to Excel</button>
+                    <button id="exportPDF" class="btn">📄 Export to PDF</button>
+                    <button id="exportExcel" class="btn">📊 Export to Excel</button>
                 </div>
             </div>
         </div>
@@ -236,18 +271,12 @@
                 <div class="form-group">
                     <label>Planting Beds</label>
                     <div id="bedsList" class="beds-list">
-                        <div class="bed-card active" data-bed-id="default">
-                            <h4>Bed 1</h4>
-                            <p>Area: <span id="bedArea">10 m²</span>, Situation: <span id="bedSituation">Open</span></p>
-                            <div class="bed-actions">
-                                <button class="btn-small edit-bed" data-bed-id="default">Edit</button>
-                                <button class="btn-small delete-bed" data-bed-id="default">Delete</button>
-                            </div>
-                        </div>
+                        <!-- Beds will be listed here -->
                     </div>
                     <button id="addBed" class="btn">+ Add Planting Bed</button>
                 </div>
 
+                <!-- Bed Editor -->
                 <div class="form-section" id="bedEditor" style="display: none;">
                     <h3>Edit Bed</h3>
                     <div class="form-group">
@@ -282,7 +311,7 @@
                         <button id="addPlantingCycle" class="btn-small">+ Add Planting Cycle</button>
                     </div>
                     <div class="form-group">
-                        <label for="bedPlant">Plant Type</label>
+                        <label for="bedPlant">Plant Type for this Bed</label>
                         <select id="bedPlant" class="form-control">
                             <option value="">Select Plant...</option>
                         </select>
@@ -293,6 +322,7 @@
                     </div>
                 </div>
 
+                <!-- Project Summary -->
                 <div class="form-section">
                     <h3>Project Summary</h3>
                     <div id="projectSummary"></div>
@@ -305,39 +335,75 @@
             <button class="close-btn" id="closeInfo">&times;</button>
             <div class="info-content">
                 <h2>AquaCalc</h2>
-                <p>FAO-56 Species and Site-Specific Water Demand Calculator</p>
+                <p><strong>FAO-56 Species and Site-Specific Water Demand Calculator</strong></p>
                 
                 <h3>About</h3>
-                <p>AquaCalc calculates irrigation water requirements using the FAO-56 Penman-Monteith method. It provides planning estimates for landscape and urban greening projects.</p>
+                <p>AquaCalc calculates irrigation water requirements using the FAO-56 Penman-Monteith method. It provides planning estimates for landscape and urban greening projects, as well as agricultural crops.</p>
 
                 <h3>How It Works</h3>
                 <p><strong>Crop water use:</strong> ETc = ET₀ × Kc × situation demand factor</p>
                 <p><strong>Effective rain:</strong> Rainfall × 0.8 × situation rain factor</p>
                 <p><strong>Net irrigation:</strong> ETc - Effective Rain (never below zero)</p>
+                <p><strong>Unit conversion:</strong> 1 mm over 1 m² = 1 litre</p>
 
-                <h3>Data Sources</h3>
+                <h3>Demand and Rain Factors</h3>
                 <ul>
-                    <li><strong>Primary:</strong> FAO Irrigation & Drainage Paper 56 (Allen et al., 1998)</li>
-                    <li><strong>ET₀ data:</strong> FAO CLIMWAT (global cross-check), GeoSphere Austria, Deutscher Wetterdienst (DWD)</li>
-                    <li><strong>Kc values:</strong> FAO-56, WUCOLS, Doorenbos & Pruitt (1977)</li>
+                    <li><strong>Open:</strong> Demand: 1.0, Rain: 1.0</li>
+                    <li><strong>Against a Wall:</strong> Demand: 1.15, Rain: 0.75 (increased heat reflection)</li>
+                    <li><strong>Under an Overhang:</strong> Demand: 1.0, Rain: 0.3 (reduced rainfall)</li>
+                    <li><strong>Roofed:</strong> Demand: 0.9, Rain: 0.0 (no rainfall)</li>
+                    <li><strong>Shaded / North Side:</strong> Demand: 0.7, Rain: 0.9 (reduced evapotranspiration)</li>
                 </ul>
 
+                <h3>Data Sources</h3>
+                <p><strong>Methodology:</strong></p>
+                <ul>
+                    <li>FAO Irrigation & Drainage Paper 56 (Allen et al., 1998)</li>
+                    <li>ASCE-EWRI standardized reference ET equation (2005)</li>
+                    <li>WUCOLS landscape water-use classification (Costello et al., UC Cooperative Extension)</li>
+                    <li>Doorenbos & Pruitt (1977)</li>
+                </ul>
+                
+                <p><strong>ET₀ Data:</strong></p>
+                <ul>
+                    <li>GeoSphere Austria</li>
+                    <li>Deutscher Wetterdienst (DWD) Climate Data Center</li>
+                    <li>MeteoSwiss</li>
+                    <li>FAO CLIMWAT (global cross-check)</li>
+                    <li>Open-Meteo API (for live data when enabled)</li>
+                </ul>
+
+                <p><strong>Kc Values:</strong> FAO-56, WUCOLS, and regionally adapted values for landscape plants.</p>
+
                 <h3>Note on Climate Data</h3>
-                <p>City climate values are planning estimates following typical regional patterns. They are not official measured data. For precise data, connect to <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a> API.</p>
+                <p>City climate values are planning estimates following typical regional patterns. They are not official measured data. For precise data, enable the Open-Meteo API option in the Site tab.</p>
+
+                <h3>Irrigation Types</h3>
+                <ul>
+                    <li><strong>Drip Line:</strong> 5 days/week, flow rate: 1.6-2.4 L/min/emitter</li>
+                    <li><strong>Soaker Hose:</strong> 4 days/week, flow rate: 2.5-3.5 L/min/m</li>
+                    <li><strong>Micro-Sprayer:</strong> 3 days/week, flow rate: 40-60 L/h/sprayer</li>
+                    <li><strong>Pop-up Sprinkler:</strong> 2 days/week, flow rate: 100-140 L/h/sprinkler</li>
+                </ul>
 
                 <h3>Version</h3>
-                <p>1.0.0</p>
+                <p>2.0.0 - Enhanced with XLSX data integration and functional exports</p>
 
                 <h3>Created by</h3>
                 <p><strong>Max Poiss</strong></p>
+                
+                <h3>GitHub</h3>
+                <p>This app is designed to work on GitHub Pages. For more information, check the README.md file.</p>
             </div>
         </div>
 
+        <!-- Footer -->
         <footer>
-            <p>© 2026 | Created by Max Poiss</p>
+            <p>© 2026 | Created by Max Poiss | AquaCalc v2.0.0</p>
         </footer>
     </div>
 
+    <!-- Data and Application Scripts -->
     <script src="data.js"></script>
     <script src="app.js"></script>
 </body>
