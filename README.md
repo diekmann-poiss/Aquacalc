@@ -1,96 +1,124 @@
-# AquaCalc - Updated Version
+# AquaCalc - FAO-56 Irrigation Water Calculator
 
-## Summary of Changes
+A web-based tool for calculating site-specific irrigation water demand using the FAO-56 methodology.
 
-This repository contains the updated AquaCalc tool with the following enhancements:
+## Overview
 
-### ✅ Completed Features
+AquaCalc helps landscape professionals, gardeners, and farmers determine the precise water needs for plants based on:
+- **Site conditions**: Reference evapotranspiration (ET₀) and rainfall data for 70+ cities worldwide
+- **Plant types**: 55+ landscape species and 70+ FAO-56 crops with customizable Kc values
+- **Planting situation**: Open, against wall, under overhang, roofed, or shaded/north side
 
-1. **Worldwide City Database** - Added 100+ cities from:
-   - All 16 German Bundesländer (federal states)
-   - USA, Canada, Brazil
-   - South Africa, Morocco, Egypt, Ethiopia
-   - Japan, China, Nepal
-   - Australia and Oceania
-   - And more...
+The calculator provides:
+- Annual water need estimates
+- Peak month identification
+- Monthly water balance charts and tables
+- Seasonal watering plans with irrigation type and pressure settings
+- PDF and Excel export capabilities
 
-2. **Climate Visualization**
-   - Bar chart displaying monthly ET₀ and Rainfall (mm)
-   - Table showing detailed monthly data
-   - Data sourced from FAO CLIMWAT and Open-Meteo patterns
+## Methodology
 
-3. **Plant Presets**
-   - Fixed preset buttons to show Kc values
-   - Each preset now displays its Kc coefficient
-   - Working selection and display
+AquaCalc implements the FAO Irrigation & Drainage Paper 56 methodology:
 
-4. **Original Color Scheme**
-   - Preserved the blue/green color scheme:
-     - Primary: #2c3e50
-     - Secondary: #3498db  
-     - Accent: #2ecc71
-     - Background: #ecf0f1
+- **Crop water use**: ETc = ET₀ × Kc × situation demand factor
+- **Effective rain**: rainfall × 0.8 × situation rain factor
+- **Net irrigation**: ETc - effective rain (minimum 0)
+- **Unit conversion**: 1 mm over 1 m² = 1 litre
 
-5. **Attribution**
-   - Added "Created by Max Poiss" to the info panel
+### Demand Factors
+- Wall: 1.15
+- Open: 1.0
+- Overhang: 1.0
+- Roofed: 0.9
+- Shaded: 0.7
 
-### Files Modified
+### Rain Factors
+- Open: 1.0
+- Shaded: 0.9
+- Wall: 0.75
+- Overhang: 0.3
+- Roofed: 0.0
 
-- `index.html` - Added climate chart containers, updated structure
-- `app.js` - Climate chart rendering, fixed plant presets with Kc display
-- `data.js` - 100+ worldwide cities with climate data
-- `styles.css` - Original color scheme preserved
+## Data Sources
 
-### How to Deploy to GitHub Pages
+### Methodology
+- FAO Irrigation & Drainage Paper 56 (Allen et al., 1998)
+- ASCE-EWRI standardized reference ET equation (2005)
+- WUCOLS landscape water-use classification (Costello et al., UC Cooperative Extension)
 
-#### Method 1: Using GitHub Desktop
-1. Open GitHub Desktop
-2. File → Add Local Repository
-3. Select this folder: `/Users/admin/Desktop/DIV/GIT/Aquacalc`
-4. Click "Publish repository" to push to GitHub
+### ET₀ Data
+- GeoSphere Austria
+- Deutscher Wetterdienst (DWD) Climate Data Center
+- MeteoSwiss
+- FAO CLIMWAT (global cross-check)
 
-#### Method 2: Using Command Line
+## Features
 
-```bash
-# Navigate to the directory
-cd /Users/admin/Desktop/DIV/GIT/Aquacalc
+### 4-Tab Workflow
+1. **Site**: Select country and city to view climate data (12-month ET₀ and rainfall)
+2. **Plant**: Choose from presets, search species, or enter custom Kc values with area and situation
+3. **Results**: View annual water need, peak month, monthly charts, and seasonal watering plans
+4. **Projects**: Plan multiple beds with different planting cycles and view combined totals
 
-# Add your GitHub credentials to the URL (replace TOKEN with your personal access token)
-git remote set-url origin https://TOKEN@github.com/diekmann-poiss/Aquacalc.git
+### Irrigation Types
+- Drip line
+- Soaker hose
+- Micro-sprayer
+- Pop-up sprinkler
 
-# Push to main branch
-git push -u origin main
+### Pressure Options
+- 2 bar
+- 4 bar
+- 6 bar
+
+### Export Options
+- PDF
+- Excel
+
+### User Interface
+- Language switcher: English, German, Spanish
+- Light/dark theme toggle
+- Info panel with methodology details
+
+## Usage
+
+1. Open `index.html` in a web browser
+2. Select your site location
+3. Choose your plant type and enter area
+4. View results and watering plan
+5. Export to PDF or Excel as needed
+
+## Project Structure
+
+```
+Aquacalc/
+├── index.html          # Main application HTML
+├── data.js             # Climate and plant data
+├── styles.css          # CSS styling
+├── README.md           # This file
+└── .github/
+    └── workflows/
+        └── deploy.yml  # GitHub Pages deployment
 ```
 
-#### Method 3: Create a Personal Access Token
-1. Go to: https://github.com/settings/tokens
-2. Click "Generate new token"
-3. Name it "Aquacalc Push"
-4. Select these scopes: `repo`
-5. Click "Generate token"
-6. Copy the token
-7. Run:
-   ```bash
-   cd /Users/admin/Desktop/DIV/GIT/Aquacalc
-   git remote set-url origin https://YOUR_TOKEN@github.com/diekmann-poiss/Aquacalc.git
-   git push -u origin main
-   ```
+## GitHub Pages Deployment
 
-### Verification
+This project is configured for automatic deployment to GitHub Pages. When you push to the main branch, the workflow will automatically deploy the site.
 
-After pushing, wait 1-2 minutes and visit:
-https://diekmann-poiss.github.io/Aquacalc/
+Your site will be available at: `https://[username].github.io/Aquacalc/`
 
-You should see:
-- ✅ Dropdown with worldwide cities (not just AT/DE/CH)
-- ✅ Climate chart appearing after city selection
-- ✅ Plant presets showing Kc values when clicked
-- ✅ "Created by Max Poiss" in the info panel
-- ✅ Original blue/green color scheme
+## License
 
-### Notes
+This project is open source and available under the [MIT License](LICENSE).
 
-- The repository is currently on the local `main` branch
-- No SSH keys are configured on this machine
-- You'll need to authenticate to push to GitHub
-- The remote is set to: `https://github.com/diekmann-poiss/Aquacalc.git`
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+## Contact
+
+For questions or feedback, please refer to the info panel within the application or check the data sources listed above.
+
+---
+
+**Note**: The city climate values are planning estimates based on regional patterns. For official values, please consult the listed institutions (GeoSphere Austria, DWD, MeteoSwiss, FAO CLIMWAT). The Kc values, situation factors, and flow rates are reasonable planning defaults, not measured data.
