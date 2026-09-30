@@ -2,6 +2,10 @@
 
 A web-based tool for calculating site-specific irrigation water demand using the FAO-56 methodology.
 
+## Citation Suggestion
+
+Poiss, M. (2026) Aquacalc (Version 2.5.4) [Computer software]. Available at: https://diekmann-poiss.github.io/Aquacalc/ (Accessed: DAY MONTH YEAR).
+
 ## Overview
 
 AquaCalc helps landscape professionals, gardeners, and farmers determine the precise water needs for plants based on:
@@ -43,13 +47,11 @@ AquaCalc implements the FAO Irrigation & Drainage Paper 56 methodology:
 
 ### Methodology
 - FAO Irrigation & Drainage Paper 56 (Allen et al., 1998)
-- ASCE-EWRI standardized reference ET equation (2005)
+- ASCE-EWRI standardised reference ET equation (2005)
 - WUCOLS landscape water-use classification (Costello et al., UC Cooperative Extension)
 
 ### ET₀ Data
-- GeoSphere Austria
-- Deutscher Wetterdienst (DWD) Climate Data Center
-- MeteoSwiss
+- Live Data via [Open Meteo](https://open-meteo.com) (API)
 - FAO CLIMWAT (global cross-check)
 
 ## Features
@@ -66,7 +68,7 @@ AquaCalc implements the FAO Irrigation & Drainage Paper 56 methodology:
 - Micro-sprayer
 - Pop-up sprinkler
 
-### Pressure Options
+### Pressure Options for Watering Plan
 - 2 bar
 - 4 bar
 - 6 bar
@@ -75,37 +77,20 @@ AquaCalc implements the FAO Irrigation & Drainage Paper 56 methodology:
 - PDF
 - Excel
 
-### User Interface
-- Language switcher: English, German, Spanish
-- Light/dark theme toggle
-- Info panel with methodology details
-
 ## Usage
 
-1. Open `index.html` in a web browser
+1. Open `https://diekmann-poiss.github.io/Aquacalc/` in web browser
 2. Select your site location
 3. Choose your plant type and enter area
 4. View results and watering plan
 5. Export to PDF or Excel as needed
 
-## Project Structure
-
-```
-Aquacalc/
-├── index.html          # Main application HTML
-├── data.js             # Climate and plant data
-├── styles.css          # CSS styling
-├── README.md           # This file
-└── .github/
-    └── workflows/
-        └── deploy.yml  # GitHub Pages deployment
-```
 
 ## GitHub Pages Deployment
 
 This project is configured for automatic deployment to GitHub Pages. When you push to the main branch, the workflow will automatically deploy the site.
 
-Your site will be available at: `https://[username].github.io/Aquacalc/`
+Your site will be available at: `https://diekmann-poiss.github.io/Aquacalc/`
 
 ## License
 
@@ -113,7 +98,7 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+Contributions are welcome! Please feel free to submit issues .
 
 ## Contact
 
@@ -121,4 +106,4 @@ For questions or feedback, please refer to the info panel within the application
 
 ---
 
-**Note**: The city climate values are planning estimates based on regional patterns. For official values, please consult the listed institutions (GeoSphere Austria, DWD, MeteoSwiss, FAO CLIMWAT). The Kc values, situation factors, and flow rates are reasonable planning defaults, not measured data.
+**Note**: The city climate values are planning estimates based on regional patterns from open source weather API open-meteo. For double checking official values, please consult the listed institutions (GeoSphere Austria, DWD, MeteoSwiss, FAO CLIMWAT). The Kc values, situation factors, and flow rates are reasonable planning defaults, not measured data.
