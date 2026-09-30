@@ -7,7 +7,7 @@
 
 var cityCoordinates = {
     // AUSTRIA
-    'Wien': { latitude: 48.2082, longitude: 16.3738 },
+    'Vienna': { latitude: 48.2082, longitude: 16.3738 },
     'Graz': { latitude: 47.0707, longitude: 15.4395 },
     'Linz': { latitude: 48.3064, longitude: 14.2858 },
     'Salzburg': { latitude: 47.8095, longitude: 13.0550 },
@@ -24,7 +24,7 @@ var cityCoordinates = {
     'Cologne': { latitude: 50.9375, longitude: 6.9603 },
     'Frankfurt': { latitude: 50.1109, longitude: 8.6821 },
     'Stuttgart': { latitude: 48.7758, longitude: 9.1829 },
-    'Duesseldorf': { latitude: 51.2277, longitude: 6.7735 },
+    'Dusseldorf': { latitude: 51.2277, longitude: 6.7735 },
     'Dortmund': { latitude: 51.5136, longitude: 7.4653 },
     'Hanover': { latitude: 52.3759, longitude: 9.7320 },
     'Bremen': { latitude: 53.0793, longitude: 8.8017 },
@@ -33,7 +33,7 @@ var cityCoordinates = {
     'Nuremberg': { latitude: 49.4521, longitude: 11.0767 },
     
     // SWITZERLAND
-    'Zuerich': { latitude: 47.3769, longitude: 8.5417 },
+    'Zurich': { latitude: 47.3769, longitude: 8.5417 },
     'Basel': { latitude: 47.5584, longitude: 7.5873 },
     'Geneva': { latitude: 46.2044, longitude: 6.1432 },
     'Bern': { latitude: 46.9481, longitude: 7.4474 },
@@ -489,9 +489,9 @@ var monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July'
 // ============================================
 
 var citiesByCountry = {
-    'AT': ['Wien', 'Graz', 'Linz', 'Salzburg', 'Innsbruck', 'Klagenfurt', 'Eisenstadt', 'Bregenz', 'St. Poelten'],
-    'DE': ['Berlin', 'Hamburg', 'Munich', 'Cologne', 'Frankfurt', 'Stuttgart', 'Duesseldorf', 'Dortmund', 'Hanover', 'Bremen', 'Leipzig', 'Dresden', 'Nuremberg'],
-    'CH': ['Zuerich', 'Basel', 'Geneva', 'Bern', 'Lausanne', 'Winterthur', 'Lugano'],
+    'AT': ['Vienna', 'Graz', 'Linz', 'Salzburg', 'Innsbruck', 'Klagenfurt', 'Eisenstadt', 'Bregenz', 'St. Poelten'],
+    'DE': ['Berlin', 'Hamburg', 'Munich', 'Cologne', 'Frankfurt', 'Stuttgart', 'Dusseldorf', 'Dortmund', 'Hanover', 'Bremen', 'Leipzig', 'Dresden', 'Nuremberg'],
+    'CH': ['Zurich', 'Basel', 'Geneva', 'Bern', 'Lausanne', 'Winterthur', 'Lugano'],
     'EU': ['Amsterdam', 'Brussels', 'Paris', 'London', 'Madrid', 'Barcelona', 'Rome', 'Milan', 'Prague', 'Warsaw', 'Copenhagen', 'Lisbon', 'Athens', 'Istanbul'],
     'NA': ['New York', 'Los Angeles', 'Chicago', 'Toronto', 'Vancouver'],
     'SA': ['Sao Paulo', 'Buenos Aires'],
@@ -499,7 +499,7 @@ var citiesByCountry = {
     'ME': ['Riyadh', 'Dubai'],
     'AS': ['Mumbai', 'Delhi', 'Bangkok', 'Singapore', 'Tokyo'],
     'OC': ['Sydney', 'Auckland'],
-    'world': ['Wien', 'Berlin', 'Zuerich', 'Amsterdam', 'Paris', 'London', 'New York', 'Los Angeles', 'Tokyo', 'Sydney'],
+    'world': ['Vienna', 'Berlin', 'Zurich', 'Amsterdam', 'Paris', 'London', 'New York', 'Los Angeles', 'Tokyo', 'Sydney'],
     '': [],
 };
 
