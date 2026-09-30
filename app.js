@@ -8,13 +8,13 @@
 // Global state
 let currentCity = null;
 let currentClimateData = null;
-let currentClimateSource = 'embedded';
 let currentPlant = null;
 let currentPlantKc = null;
 let currentArea = 10;
 let currentSituation = 'open';
 let currentIrrigationType = 'drip';
 let currentPressure = 2;
+let currentTimePeriod = '30';
 let climateChart = null;
 let monthlyChart = null;
 let selectedCountry = null;
@@ -22,9 +22,107 @@ let projects = {};
 let currentProjectId = null;
 let elements = {};
 
+// ============================================
+// API Request Cache and Rate Limit Tracking
+// ============================================
+
+// Cache for API responses: keys are "cityName_timePeriod"
+const apiResponseCache = new Map();
+
+// Track API request statistics
+let apiRequestCount = 0;
+let apiRequestLimit = 1000; // Open-Meteo free tier limit: 1000 requests/day
+
+// Retry configuration
+const maxRetries = 3;
+const retryBaseDelay = 1000; // 1 second base delay
+
+// Initialize request tracking
+function initApiTracking() {
+    // Check if we have saved request data from today
+    const savedData = localStorage.getItem('aquacalc-api-stats');
+    const today = new Date().toDateString();
+    
+    if (savedData) {
+        const data = JSON.parse(savedData);
+        if (data.date === today) {
+            apiRequestCount = data.count || 0;
+        } else {
+            // Different day, reset counter
+            apiRequestCount = 0;
+        }
+    }
+}
+
+// Save request statistics
+function saveApiStats() {
+    const data = {
+        date: new Date().toDateString(),
+        count: apiRequestCount
+    };
+    localStorage.setItem('aquacalc-api-stats', JSON.stringify(data));
+}
+
+// Increment request counter
+function incrementRequestCount() {
+    apiRequestCount++;
+    saveApiStats();
+}
+
+// Check if we're near or at the rate limit
+function checkRateLimit() {
+    const remaining = apiRequestLimit - apiRequestCount;
+    if (remaining <= 0) {
+        return { allowed: false, remaining: 0, message: 'Daily API limit reached (1000 requests/day)' };
+    } else if (remaining <= 10) {
+        return { allowed: true, remaining: remaining, message: `Warning: ${remaining} requests remaining` };
+    } else {
+        return { allowed: true, remaining: remaining, message: null };
+    }
+}
+
+// Generate cache key from city and time period
+function getCacheKey(cityName, years) {
+    return `${cityName}_${years}`;
+}
+
+// Get user-friendly HTTP error messages
+function getHttpErrorMessage(statusCode) {
+    const messages = {
+        400: 'Bad Request - Invalid parameters',
+        401: 'Unauthorized - Authentication required',
+        403: 'Forbidden - Access denied',
+        404: 'Not Found - Location or data not available',
+        429: 'Too Many Requests - Rate limit exceeded',
+        500: 'Internal Server Error - API server issue',
+        502: 'Bad Gateway - API service temporarily unavailable',
+        503: 'Service Unavailable - API service overloaded',
+        504: 'Gateway Timeout - API request timed out'
+    };
+    return messages[statusCode] || `HTTP Error ${statusCode}`;
+}
+
+// Update the API status display with request count
+function updateApiStatusDisplay() {
+    const apiStatus = document.getElementById('apiStatus');
+    if (!apiStatus) return;
+    
+    const rateCheck = checkRateLimit();
+    const remaining = apiRequestLimit - apiRequestCount;
+    
+    if (rateCheck.remaining <= 10) {
+        apiStatus.textContent = `⚠️ ${apiRequestCount}/${apiRequestLimit} requests today - ${remaining} remaining`;
+        apiStatus.style.color = 'orange';
+    } else {
+        apiStatus.textContent = `API: ${apiRequestCount}/${apiRequestLimit} requests today`;
+        apiStatus.style.color = 'inherit';
+    }
+}
+
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function() {
     initializeElements();
+    initApiTracking();
     initTabs();
     initCountrySelect();
     initPlantPresets();
@@ -35,15 +133,16 @@ document.addEventListener('DOMContentLoaded', function() {
     initCharts();
     initProjects();
     initExports();
-    initLanguage();
     loadState();
-    console.log('AquaCalc initialized');
+    updateApiStatusDisplay();
+    console.log('AquaCalc initialized with API request tracking');
 });
 
 // Initialize DOM elements
 function initializeElements() {
     elements.countrySelect = document.getElementById('country');
     elements.citySelect = document.getElementById('city');
+    elements.timePeriodSelect = document.getElementById('timePeriod');
     elements.climateCard = document.getElementById('climateCard');
     elements.climateInfo = document.getElementById('climateInfo');
     elements.climateDataTable = document.getElementById('climateData');
@@ -70,7 +169,6 @@ function initializeElements() {
     elements.closeInfo = document.getElementById('closeInfo');
     elements.exportPDF = document.getElementById('exportPDF');
     elements.exportExcel = document.getElementById('exportExcel');
-    elements.languageSelect = document.getElementById('language');
 }
 
 // Tab management
@@ -113,6 +211,31 @@ function initCountrySelect() {
         saveState();
     });
     
+    // Move city select handler here to avoid duplicate listeners
+    if (elements.citySelect) {
+        elements.citySelect.addEventListener('change', async () => {
+            const city = elements.citySelect.value;
+            if (city) {
+                currentCity = city;
+                if (elements.climateCard) elements.climateCard.style.display = 'block';
+                
+                // API only - always load from OpenMeteo
+                const apiData = await loadClimateData(city);
+                if (apiData) {
+                    displayClimateData(city);
+                } else {
+                    // Could not load data
+                    currentClimateData = null;
+                    if (elements.climateCard) elements.climateCard.style.display = 'none';
+                }
+            } else {
+                currentCity = null; currentClimateData = null;
+                if (elements.climateCard) elements.climateCard.style.display = 'none';
+            }
+            saveState();
+        });
+    }
+    
     if (elements.countrySelect.value) populateCities(elements.countrySelect.value);
 }
 
@@ -129,23 +252,216 @@ function populateCities(countryCode) {
         opt.value = city; opt.textContent = city;
         elements.citySelect.appendChild(opt);
     });
+}
+
+// ============================================
+// OpenMeteo API Integration Functions
+// Fetch climate data from OpenMeteo API for selected city and time period
+// ============================================
+
+// Fetch climate data from OpenMeteo API with caching and retry logic
+async function fetchClimateDataFromOpenMeteo(cityName, years) {
+    const coords = cityCoordinates[cityName];
+    if (!coords) {
+        console.error('City coordinates not found:', cityName);
+        return null;
+    }
     
-    elements.citySelect.addEventListener('change', () => {
-        const city = elements.citySelect.value;
-        if (city) {
-            currentCity = city;
-            currentClimateSource = 'embedded';
-            if (climateData[city]) {
-                currentClimateData = climateData[city];
-                displayClimateData(city);
-                if (elements.climateCard) elements.climateCard.style.display = 'block';
+    // Check rate limit before making request
+    const rateCheck = checkRateLimit();
+    if (!rateCheck.allowed && rateCheck.remaining <= 0) {
+        console.error('API rate limit reached');
+        return null;
+    }
+    
+    // Generate cache key
+    const cacheKey = getCacheKey(cityName, years);
+    
+    // Return cached response if available
+    if (apiResponseCache.has(cacheKey)) {
+        console.log('Returning cached data for:', cacheKey);
+        return apiResponseCache.get(cacheKey);
+    }
+    
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setFullYear(startDate.getFullYear() - parseInt(years));
+    
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+    
+    // Format: YYYY-MM-DD
+    const apiUrl = `https://archive-api.open-meteo.com/v1/era5?latitude=${coords.latitude}&longitude=${coords.longitude}&start_date=${startStr}&end_date=${endStr}&daily=precipitation_sum,et0_fao_evapotranspiration&timezone=auto`;
+    
+    let lastError = null;
+    
+    // Retry loop with exponential backoff
+    for (let retry = 0; retry <= maxRetries; retry++) {
+        try {
+            const response = await fetch(apiUrl);
+            
+            // Check for rate limiting (429 Too Many Requests)
+            if (response.status === 429) {
+                const retryAfter = response.headers.get('Retry-After') || 5;
+                console.warn(`Rate limited. Retry after ${retryAfter} seconds.`);
+                
+                if (retry < maxRetries) {
+                    // Wait for the specified time or exponential backoff, whichever is longer
+                    const delay = Math.max(retryAfter * 1000, retryBaseDelay * Math.pow(2, retry));
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                } else {
+                    throw new Error(`Rate limited. Please wait ${retryAfter} seconds.`);
+                }
             }
-        } else {
-            currentCity = null; currentClimateData = null;
-            if (elements.climateCard) elements.climateCard.style.display = 'none';
+            
+            // Check for other HTTP errors
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${getHttpErrorMessage(response.status)}`);
+            }
+            
+            const data = await response.json();
+            
+            // Increment request counter only on successful response
+            incrementRequestCount();
+            updateApiStatusDisplay();
+            
+            // Process and cache the response
+            const processedData = processOpenMeteoData(data, years);
+            if (processedData) {
+                apiResponseCache.set(cacheKey, processedData);
+                return processedData;
+            } else {
+                // Invalid data format
+                throw new Error('Invalid data format in API response');
+            }
+            
+        } catch (error) {
+            lastError = error;
+            console.error(`Attempt ${retry + 1} failed for ${cityName}:`, error);
+            
+            // Wait before retrying (exponential backoff)
+            if (retry < maxRetries) {
+                const delay = retryBaseDelay * Math.pow(2, retry);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
         }
-        saveState();
-    });
+    }
+    
+    // All retries failed
+    console.error('All retry attempts failed for:', cityName, lastError);
+    return null;
+}
+
+// Process OpenMeteo API response into our format
+function processOpenMeteoData(apiData, years) {
+    if (!apiData || !apiData.daily || !apiData.daily.precipitation_sum || !apiData.daily.et0_fao_evapotranspiration) {
+        console.error('Invalid OpenMeteo API response:', apiData);
+        return null;
+    }
+    
+    const precip = apiData.daily.precipitation_sum;
+    const et0 = apiData.daily.et0_fao_evapotranspiration;
+    const dates = apiData.daily.time;
+    
+    // Validate we have data
+    if (!Array.isArray(precip) || !Array.isArray(et0) || precip.length === 0 || et0.length === 0) {
+        console.error('No valid data in OpenMeteo response');
+        return null;
+    }
+    
+    // Group by month and calculate monthly averages
+    const monthlyData = Array(24).fill(0); // 12 months rainfall + 12 months ET0
+    const monthlyDayCounts = Array(12).fill(0); // Count days per month for averaging
+    
+    for (let i = 0; i < dates.length; i++) {
+        const date = new Date(dates[i]);
+        const month = date.getMonth(); // 0-11
+        
+        // Sum precipitation for each month
+        if (precip[i] !== null && !isNaN(precip[i])) {
+            monthlyData[month] += precip[i];
+            monthlyDayCounts[month]++;
+        }
+        
+        // Sum ET0 for each month
+        if (et0[i] !== null && !isNaN(et0[i])) {
+            monthlyData[month + 12] += et0[i];
+        }
+    }
+    
+    // Calculate monthly averages: divide by number of years
+    // The sum for each month is the total across all years, so divide by years to get average
+    const yearsOfData = parseInt(years) || 30;
+    
+    for (let m = 0; m < 12; m++) {
+        if (monthlyDayCounts[m] > 0) {
+            // Divide total by number of years to get average monthly value
+            monthlyData[m] = parseFloat((monthlyData[m] / yearsOfData).toFixed(1));
+            monthlyData[m + 12] = parseFloat((monthlyData[m + 12] / yearsOfData).toFixed(1));
+        }
+    }
+    
+    return monthlyData;
+}
+
+// Load climate data - API only
+async function loadClimateData(cityName) {
+    if (currentTimePeriod) {
+        // Show loading state
+        const apiStatus = document.getElementById('apiStatus');
+        if (apiStatus) {
+            apiStatus.textContent = 'Loading from OpenMeteo...';
+            apiStatus.style.color = 'orange';
+        }
+        
+        // Check rate limit before attempting
+        const rateCheck = checkRateLimit();
+        if (!rateCheck.allowed) {
+            if (apiStatus) {
+                apiStatus.textContent = rateCheck.message || 'API rate limit reached';
+                apiStatus.style.color = 'red';
+            }
+            return null;
+        }
+        
+        try {
+            const apiData = await fetchClimateDataFromOpenMeteo(cityName, currentTimePeriod);
+            if (apiData) {
+                currentClimateData = apiData;
+                if (apiStatus) {
+                    apiStatus.textContent = 'Live data from OpenMeteo';
+                    apiStatus.style.color = 'green';
+                }
+                return apiData;
+            } else {
+                // fetchClimateDataFromOpenMeteo returned null (rate limited or error)
+                if (apiStatus) {
+                    const rateCheckNow = checkRateLimit();
+                    if (!rateCheckNow.allowed) {
+                        apiStatus.textContent = rateCheckNow.message || 'API rate limit reached';
+                    } else {
+                        apiStatus.textContent = 'API request failed. Please try again later.';
+                    }
+                    apiStatus.style.color = 'red';
+                }
+            }
+        } catch (error) {
+            console.error('API fetch failed:', error);
+            if (apiStatus) {
+                apiStatus.textContent = `API Error: ${error.message || 'Please try again later'}`;
+                apiStatus.style.color = 'red';
+            }
+        }
+    }
+    
+    // No fallback - API only
+    const apiStatus = document.getElementById('apiStatus');
+    if (apiStatus) {
+        apiStatus.textContent = 'API request failed. Please try again later.';
+        apiStatus.style.color = 'red';
+    }
+    return null;
 }
 
 function displayClimateData(cityName) {
@@ -153,8 +469,8 @@ function displayClimateData(cityName) {
     const data = currentClimateData;
     const et0Annual = data.slice(12,24).reduce((a,b)=>a+b,0);
     const rainAnnual = data.slice(0,12).reduce((a,b)=>a+b,0);
-    elements.climateInfo.innerHTML = `<div class="row"><div class="col"><strong>Annual ET0:</strong> ${et0Annual} mm</div>
-        <div class="col"><strong>Annual Rainfall:</strong> ${rainAnnual} mm</div></div>`;
+    elements.climateInfo.innerHTML = `<div class="row"><div class="col"><strong>Annual ET0:</strong> ${et0Annual.toFixed(1)} mm</div>
+        <div class="col"><strong>Annual Rainfall:</strong> ${rainAnnual.toFixed(1)} mm</div></div>`;
     updateClimateTable(cityName, data);
     createClimateChart(cityName, data);
 }
@@ -165,7 +481,7 @@ function updateClimateTable(cityName, data) {
     elements.climateDataTable.innerHTML = '';
     for (let i=0; i<12; i++) {
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${months[i]}</td><td>${et0Data[i]}</td><td>${rainData[i]}</td>`;
+        row.innerHTML = `<td>${months[i]}</td><td>${et0Data[i].toFixed(1)}</td><td>${rainData[i].toFixed(1)}</td>`;
         elements.climateDataTable.appendChild(row);
     }
 }
@@ -379,6 +695,23 @@ function initFormInputs() {
         currentPressure = parseInt(elements.pressure.value) || 2;
         elements.pressure.addEventListener('change', () => { currentPressure = parseInt(elements.pressure.value) || 2; calculateResults(); saveState(); });
     }
+    // Time period control
+    if (elements.timePeriodSelect) {
+        currentTimePeriod = elements.timePeriodSelect.value || '30';
+        elements.timePeriodSelect.addEventListener('change', async () => { 
+            currentTimePeriod = elements.timePeriodSelect.value; 
+            
+            // Reload climate data from API with new time period
+            if (currentCity) {
+                const apiData = await loadClimateData(currentCity);
+                if (apiData) {
+                    displayClimateData(currentCity);
+                }
+            }
+            
+            calculateResults(); saveState(); 
+        });
+    }
 }
 
 // Sanity check function
@@ -424,11 +757,11 @@ function performSanityChecks(et0Data, rainData, kcValues) {
     const maxMonthlyET0 = Math.max(...et0Data);
     const minMonthlyET0 = Math.min(...et0Data);
     
-    if (maxMonthlyET0 > 150 && currentClimateSource === 'embedded') {
+    if (maxMonthlyET0 > 150) {
         warnings.push(`Peak ET0 (${maxMonthlyET0} mm/month) is high. Check climate data source.`);
     }
     
-    if (minMonthlyET0 < 10 && currentClimateSource === 'embedded') {
+    if (minMonthlyET0 < 10) {
         warnings.push(`Minimum ET0 (${minMonthlyET0} mm/month) is low. Check climate data source.`);
     }
     
@@ -555,7 +888,7 @@ function createMonthlyChart(monthlyResults) {
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            scales: {y: {beginAtZero: true, title: {display: true, text: 'mm'}}},
+            scales: {y: {beginAtZero: true, title: {display: true, text: 'Water Depth (mm)'}}},
             plugins: {
                 title: {display: true, text: 'Monthly Water Balance', font: {size: 16}},
                 legend: {position: 'top'}
@@ -571,25 +904,21 @@ function calculateWateringPlan(monthlyResults, peakMonthIndex) {
     const config = irrigationTypes[type]; 
     if (!config) return;
     
-    const peakNet = parseFloat(monthlyResults[peakMonthIndex].net);
     const peakLitres = parseFloat(monthlyResults[peakMonthIndex].litres);
     const weeklyLitres = peakLitres / 4.345;
     const flowRate = config.flowRate[pressure] || config.flowRate['4'];
     
     // Calculate emitters/units needed based on area and coverage factor
     const emittersNeeded = currentArea * (config.coverageFactor || 1);
-    const totalFlowRate = flowRate * emittersNeeded;
+    const unitsNeeded = Math.ceil(emittersNeeded);
     
-    // Calculate time per session (in minutes)
-    const litresPerSession = weeklyLitres / config.daysPerWeek;
+    // Convert ALL flow rates to L/min for consistent calculation
+    // All irrigationTypes now use L/hour, so we need to divide by 60
+    const flowRateLmin = flowRate / 60; // Convert L/hour to L/min
+    const totalFlowLmin = flowRateLmin * unitsNeeded;
     
-    // For micro and sprinkler, flowRate is in L/h, need to convert to L/min for consistency
-    let effectiveFlowRate = totalFlowRate;
-    if (type === 'micro' || type === 'sprinkler') {
-        effectiveFlowRate = totalFlowRate / 60; // Convert L/h to L/min
-    }
-    
-    let minutesPerSession = litresPerSession / effectiveFlowRate;
+    // Get plant type
+    const plantType = getPlantType(currentPlant);
     
     const seasons = [
         {name:'Spring', months:[2,3,4], key:'spring'},
@@ -606,28 +935,50 @@ function calculateWateringPlan(monthlyResults, peakMonthIndex) {
     seasons.forEach((season, idx) => {
         const isPeak = idx === peakSeasonIndex;
         const days = config.daysPerWeek;
-        const litres = isPeak ? weeklyLitres : Math.round(weeklyLitres * 0.7);
-        const minutes = Math.round(minutesPerSession);
-        const litresPer = Math.round(litres / days);
         
-        // Calculate number of emitters/sprayers needed
-        const unitsNeeded = Math.ceil(emittersNeeded);
-        const flowRateDisplay = (type === 'micro' || type === 'sprinkler') ? 
-            `${flowRate} L/h` : `${flowRate} L/min`;
+        // Calculate season-specific litres using plant-specific factors
+        const seasonFactor = getSeasonalFactor(currentPlant, season.key);
+        const seasonWeeklyLitres = weeklyLitres * seasonFactor;
         
-        // Calculate total flow for the area
-        const totalFlowDisplay = (type === 'micro' || type === 'sprinkler') ? 
-            `${(totalFlowRate).toFixed(1)} L/h` : `${(totalFlowRate).toFixed(1)} L/min`;
+        const seasonLitresPerSession = seasonWeeklyLitres / days;
+        
+        // Calculate minutes per session for THIS season
+        let seasonMinutes = 0;
+        if (totalFlowLmin > 0) {
+            seasonMinutes = seasonLitresPerSession / totalFlowLmin;
+        }
+        
+        const litresPerSessionDisplay = Math.round(seasonLitresPerSession);
+        const minutesDisplay = seasonMinutes.toFixed(1);
+        
+        // Add practical validation warnings
+        let warningHtml = '';
+        if (seasonMinutes < 1) {
+            warningHtml = '<p class="warning">⚠️ Session too short (< 1 min). Consider lower flow rate or more units.</p>';
+        } else if (seasonMinutes > 120) {
+            const numSessions = Math.ceil(seasonMinutes / 120);
+            const adjustedMinutes = (seasonMinutes / numSessions).toFixed(1);
+            warningHtml = `<p class="warning">⚠️ Long session (${seasonMinutes.toFixed(0)} min). Consider ${numSessions} sessions of ${adjustedMinutes} minutes each.</p>`;
+        }
+        
+        // Flow rate display
+        const flowRateDisplay = `${flowRate} L/h`; // All now in L/hour
+        const totalFlowDisplay = `${(totalFlowLmin * 60).toFixed(1)} L/h`; // Total in L/hour
+        
+        // Unit type
+        const unitType = type === 'drip' ? 'emitters' : type === 'micro' ? 'micro-sprayers' : 'sprinklers';
         
         const card = document.createElement('div');
         card.className = 'season-card';
         card.innerHTML = `<h4>${season.name}</h4>
             <p><strong>Days per week:</strong> ${days}</p>
-            <p><strong>Minutes per session:</strong> ${minutes}</p>
-            <p><strong>Litres per session:</strong> ${litresPer.toLocaleString()}</p>
-            <p><strong>Units needed:</strong> ${unitsNeeded} ${type === 'drip' ? 'emitters' : type === 'soaker' ? 'meters of hose' : type === 'micro' ? 'micro-sprayers' : 'sprinklers'} @ ${flowRateDisplay} each</p>
+            <p><strong>Minutes per session:</strong> ${minutesDisplay}</p>
+            <p><strong>Litres per session:</strong> ${litresPerSessionDisplay.toLocaleString()}</p>
+            <p><strong>Weekly water:</strong> ${Math.round(seasonWeeklyLitres).toLocaleString()} litres</p>
+            <p><strong>Units needed:</strong> ${unitsNeeded} ${unitType} @ ${flowRateDisplay} each</p>
             <p><strong>Total flow:</strong> ${totalFlowDisplay} for ${currentArea} m²</p>
-            ${isPeak ? '<p><em>(Peak season)</em></p>' : ''}`;
+            ${isPeak ? '<p><em>(Peak season - highest water demand)</em></p>' : ''}
+            ${warningHtml}`;
         elements.seasonCards.appendChild(card);
     });
 }
@@ -795,7 +1146,7 @@ function generatePDFContent() {
         <div class="result-card"><h3>Peak Month Need</h3><div class="result-value">${elements.peakNeed?elements.peakNeed.textContent:'-'}</div><p>litres</p></div></div></div>
         <div class="section"><h2>Seasonal Watering Plan</h2>${generateWateringPlanHTML()}</div>
         <div class="footer"><p>&#169; ${new Date().getFullYear()} | AquaCalc - FAO-56 Irrigation Water Calculator</p>
-        <p>Data Sources: FAO-56, GeoSphere Austria, DWD, MeteoSwiss, ${currentClimateSource==='api'?'Open-Meteo API':'Embedded Climate Data'}</p></div></body></html>`;
+        <p>Data Source: Open-Meteo API (ERA5 reanalysis)</p></div></body></html>`;
 }
 
 function generateClimateTableHTML() {
@@ -838,10 +1189,10 @@ function generateCSVContent() {
     const plantName = plantNamesEN[currentPlant] || currentPlant;
     const date = new Date().toLocaleDateString();
     let csv = 'AquaCalc Export\nGenerated: ' + date + '\nCity: ' + currentCity + '\nPlant: ' + plantName + '\nArea: ' + currentArea + ' m\u001b2\nSituation: ' + currentSituation + '\n\n';
-    csv += 'Climate Data\nMonth,ET\u001a0 (mm),Rainfall (mm)\n';
+    csv += 'Climate Data\nMonth,ET₀ (mm),Rainfall (mm)\n';
     const et0 = currentClimateData.slice(12,24); const rain = currentClimateData.slice(0,12);
     for (let i=0; i<12; i++) csv += months[i] + ',' + et0[i] + ',' + rain[i] + '\n';
-    csv += '\nMonthly Water Balance\nMonth,ET\u001a0 (mm),Kc,ETc (mm),Rain (mm),Effective Rain (mm),Net (mm),Litres\n';
+    csv += '\nMonthly Water Balance\nMonth,ET₀ (mm),Kc,ETc (mm),Rain (mm),Effective Rain (mm),Net (mm),Litres\n';
     elements.resultsTableBody.querySelectorAll('tr').forEach(row => {
         const cells = row.querySelectorAll('td');
         if (cells.length === 8) csv += Array.from(cells).map(c => c.textContent).join(',') + '\n';
@@ -855,11 +1206,10 @@ function generateCSVContent() {
 // State management
 function saveState() {
     localStorage.setItem('aquacalc-state', JSON.stringify({
-        country: selectedCountry, city: currentCity, climateSource: currentClimateSource,
-        plant: currentPlant, customKc: currentPlantKc, area: currentArea, situation: currentSituation,
+        country: selectedCountry, city: currentCity, plant: currentPlant, customKc: currentPlantKc, area: currentArea, situation: currentSituation,
         irrigationType: currentIrrigationType, pressure: currentPressure,
-        theme: document.documentElement.getAttribute('data-theme') || 'light',
-        language: elements.languageSelect?elements.languageSelect.value:'en'
+        timePeriod: currentTimePeriod,
+        theme: document.documentElement.getAttribute('data-theme') || 'light'
     }));
 }
 
@@ -869,13 +1219,21 @@ function loadState() {
         if (state.theme) { document.documentElement.setAttribute('data-theme', state.theme);
             if (elements.themeToggle) elements.themeToggle.textContent = state.theme==='dark'?'Toggle Light Mode':'Toggle Dark Mode';
             setTimeout(updateChartsTheme, 100); }
-        if (state.language && elements.languageSelect) { elements.languageSelect.value = state.language; initLanguage(); }
         if (state.country && elements.countrySelect) { elements.countrySelect.value = state.country; selectedCountry = state.country; populateCities(state.country); }
-        if (state.city) { setTimeout(() => {
+        if (state.city) { setTimeout(async () => {
             if (elements.citySelect) { elements.citySelect.value = state.city; currentCity = state.city;
-                currentClimateSource = state.climateSource || 'embedded';
-                if (climateData[state.city]) { currentClimateData = climateData[state.city]; displayClimateData(state.city);
-                    if (elements.climateCard) elements.climateCard.style.display = 'block'; } }
+                
+                // Set time period if available in state
+                if (state.timePeriod && elements.timePeriodSelect) {
+                    currentTimePeriod = state.timePeriod;
+                    elements.timePeriodSelect.value = state.timePeriod;
+                }
+                
+                // Load climate data
+                if (currentCity && currentTimePeriod) {
+                    await loadClimateData(currentCity);
+                }
+            }
         }, 100); }
         if (state.plant) { currentPlant = state.plant;
             if (state.plant === 'custom' && state.customKc) { currentPlantKc = state.customKc;
@@ -890,10 +1248,5 @@ function loadState() {
     } catch (e) { console.error('Error loading state:', e); }
 }
 
-// Language management
-function initLanguage() { if (!elements.languageSelect) return;
-    elements.languageSelect.addEventListener('change', () => { const lang = elements.languageSelect.value; localStorage.setItem('language', lang); });
-    const saved = localStorage.getItem('language') || 'en';
-    if (elements.languageSelect) elements.languageSelect.value = saved;
-}
+// Language management removed - English only version
 

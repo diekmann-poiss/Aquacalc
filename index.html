@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="AquaCalc - FAO-56 Irrigation Water Calculator for landscape professionals and gardeners">
+    <meta name="description" content="AquaCalc - FAO-56 Water Demand Calculator for landscape architects and gardeners">
     <meta name="keywords" content="irrigation, water, FAO-56, evapotranspiration, landscape, gardening, calculator">
     <meta name="author" content="Max Poiss">
     
-    <title>AquaCalc - FAO-56 Irrigation Water Calculator</title>
+    <title>AquaCalc - FAO-56 Water Demand Calculator</title>
     
     <!-- Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -28,11 +28,6 @@
             <h1>AquaCalc</h1>
             <p class="subtitle">FAO-56 Species and Site-Specific Water Demand Calculator</p>
             <div class="header-controls">
-                <select id="language" class="control">
-                    <option value="en">EN</option>
-                    <option value="de">DE</option>
-                    <option value="es">ES</option>
-                </select>
                 <button id="themeToggle" class="control">Toggle Dark Mode</button>
                 <button id="infoToggle" class="control">Info</button>
             </div>
@@ -49,8 +44,8 @@
         <!-- Site Tab -->
         <div class="tab-content active" id="siteTab">
             <div class="form-section">
-                <h2>Site Selection</h2>
-                <p>Select your location to view climate data including reference evapotranspiration (ET₀) and rainfall.</p>
+                <h2>Siteauswahl</h2>
+                <p>Select your location, um Climate Data einschließlich Referenz-Evapotranspiration (ET₀) to view rainfall data.</p>
                 
                 <div class="row">
                     <div class="col">
@@ -69,17 +64,21 @@
                             </select>
                         </div>
                     </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="timePeriod">Time Period</label>
+                            <select id="timePeriod" class="form-control">
+                                <option value="30">Last 30 years</option>
+                                <option value="10">Last 10 years</option>
+                                <option value="5">Last 5 years</option>
+                            </select>
+                            <small class="help-text">Select time period for climate data from Open-Meteo API (5, 10, or 30 years of historical data).</small>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- API Data Toggle (Future feature) -->
-                <div class="api-options" id="apiOptions" style="display: none;">
-                    <label>
-                        <input type="checkbox" id="useApiData">
-                        Use live climate data from Open-Meteo API
-                    </label>
-                    <span id="apiStatus"></span>
-                </div>
-
+                <!-- Climate Data Card (API only) -->
+                <div id="apiStatus" style="margin: 10px 0;"></div>
                 <!-- Climate Data Card -->
                 <div class="climate-card" id="climateCard" style="display: none;">
                     <h3>Climate Data</h3>
@@ -106,7 +105,7 @@
         <!-- Plant Tab -->
         <div class="tab-content" id="plantTab">
             <div class="form-section">
-                <h2>Plant Selection</h2>
+                <h2>Plantnauswahl</h2>
                 <p>Choose what you're planting and its growing conditions.</p>
                 
                 <!-- Quick Presets -->
@@ -234,7 +233,7 @@
                                 <label>Irrigation Type</label>
                                 <select id="irrigationType" class="form-control">
                                     <option value="drip">Drip Line</option>
-                                    <option value="soaker">Soaker Hose</option>
+                                    
                                     <option value="micro">Micro-Sprayer</option>
                                     <option value="sprinkler">Pop-up Sprinkler</option>
                                 </select>
@@ -364,33 +363,35 @@
                     <li>Doorenbos & Pruitt (1977)</li>
                 </ul>
                 
-                <p><strong>ET₀ Data:</strong></p>
-                <ul>
-                    <li>GeoSphere Austria</li>
-                    <li>Deutscher Wetterdienst (DWD) Climate Data Center</li>
-                    <li>MeteoSwiss</li>
-                    <li>FAO CLIMWAT (global cross-check)</li>
-                    <li>Open-Meteo API (for live data when enabled)</li>
-                </ul>
+                <p><strong>ET₀ Data:</strong> Open-Meteo API (ERA5 reanalysis)</p>
+                <p><strong>Rainfall Data:</strong> Open-Meteo API (ERA5 reanalysis)</p>
 
                 <p><strong>Kc Values:</strong> FAO-56, WUCOLS, and regionally adapted values for landscape plants.</p>
 
                 <h3>Note on Climate Data</h3>
-                <p>City climate values are planning estimates following typical regional patterns. They are not official measured data. For precise data, enable the Open-Meteo API option in the Site tab.</p>
+                <p>All climate data is sourced from the Open-Meteo API using ERA5 reanalysis data. Mean values can be selected for last 5, 10, or 30 years. This tool requires an internet connection to fetch climate data.</p>
+
+                <h3>Citation</h3>
+                <p><small>Poiss, M. (2026) Aquacalc (Version 2.5.4) [Computer software]. Available at: https://diekmann-poiss.github.io/Aquacalc/ (Accessed: DAY MONTH YEAR).</small></p>
 
                 <h3>Irrigation Types</h3>
                 <ul>
                     <li><strong>Drip Line:</strong> 5 days/week, flow rate: 1.6-2.4 L/min/emitter</li>
-                    <li><strong>Soaker Hose:</strong> 4 days/week, flow rate: 2.5-3.5 L/min/m</li>
+                    
                     <li><strong>Micro-Sprayer:</strong> 3 days/week, flow rate: 40-60 L/h/sprayer</li>
                     <li><strong>Pop-up Sprinkler:</strong> 2 days/week, flow rate: 100-140 L/h/sprinkler</li>
                 </ul>
 
                 <h3>Version</h3>
-                <p>2.0.0 - Enhanced with XLSX data integration and functional exports</p>
+                <p>2.5.4 - API-only version using Open-Meteo for all climate data, time period selection (5, 10, 30 years), functional exports, chart labels clarified as Water Depth (mm), API request caching, rate limit tracking (1000 requests/day), and automatic retry with exponential backoff</p>
 
                 <h3>Created by</h3>
                 <p><strong>Max Poiss</strong></p>
+                <h3>Citation</h3>
+                <p>Poiss, M. (2026) Aquacalc (Version 2.5.4) [Computer software]. Available at: https://diekmann-poiss.github.io/Aquacalc/ (Accessed: 28 September 2026).</p>
+                
+                <h3>API Rate Limits</h3>
+                <p><strong>Open-Meteo Free Tier:</strong> 1000 requests per day. This tool tracks your usage and will warn you when approaching the limit. Data is cached to minimize API calls.</p>
                 
                 <h3>GitHub</h3>
                 <p>This app is designed to work on GitHub Pages. For more information, check the README.md file.</p>
@@ -399,7 +400,7 @@
 
         <!-- Footer -->
         <footer>
-            <p>© 2026 | Created by Max Poiss | AquaCalc v2.0.0</p>
+            <p>© 2026 | Created by Max Poiss | AquaCalc v2.5.4</p>
         </footer>
     </div>
 

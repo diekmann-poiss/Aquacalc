@@ -1,130 +1,108 @@
 // ============================================
-// AquaCalc Data - Enhanced Version
+// AquaCalc Data - API-Only Version
 // FAO-56 Irrigation Water Calculator
 // Created by Max Poiss
-// Enhanced with data from FAO56_Kc_Bewasserungsbedarf_MP.xlsx
-// Corrected with realistic FAO CLIMWAT values
+// Uses Open-Meteo API for all climate data
 // ============================================
 
-// ============================================
-// Climate Data: [Jan-Dec Rainfall, Jan-Dec ET0]
-// All values in mm
-// Sources: FAO CLIMWAT (primary), GeoSphere Austria, DWD, MeteoSwiss, and extracted XLSX data
-// Format: [rainJan, rainFeb, ..., rainDec, et0Jan, et0Feb, ..., et0Dec]
-// NOTE: ET0 values are MONTHLY totals (not daily), typical range 20-150 mm/month
-// ============================================
-
-const climateData = {
-    // AUSTRIA - Corrected with realistic FAO CLIMWAT values
-    // Vienna: Lat 48.2N, Alt 163m, typical ET0 ~80-120 mm in summer
-    'Wien': [45, 40, 50, 55, 65, 70, 75, 70, 60, 50, 45, 40, 25, 30, 50, 70, 90, 100, 110, 100, 85, 70, 45, 30],
-    
-    // Graz: Lat 47.1N, Alt 353m
-    'Graz': [35, 35, 45, 55, 70, 80, 85, 80, 65, 55, 45, 40, 20, 25, 45, 65, 85, 95, 105, 95, 80, 65, 45, 30],
-    
-    // Linz: Lat 48.3N, Alt 266m
-    'Linz': [40, 40, 50, 60, 75, 85, 90, 85, 70, 60, 50, 45, 20, 25, 45, 65, 80, 90, 100, 90, 75, 60, 45, 30],
-    
-    // Salzburg: Lat 47.8N, Alt 420m
-    'Salzburg': [45, 40, 50, 60, 75, 90, 95, 90, 75, 65, 55, 50, 20, 25, 40, 60, 75, 85, 95, 85, 70, 55, 40, 25],
-    
-    // Innsbruck: Lat 47.3N, Alt 574m (higher altitude = lower ET0)
-    'Innsbruck': [50, 45, 55, 65, 80, 90, 95, 90, 75, 65, 55, 50, 20, 25, 40, 60, 75, 80, 90, 85, 70, 55, 40, 25],
-    
-    // Klagenfurt: Lat 46.6N, Alt 446m
-    'Klagenfurt': [40, 35, 45, 60, 75, 85, 90, 85, 70, 60, 50, 45, 20, 25, 45, 65, 80, 90, 95, 85, 70, 55, 40, 25],
-    
-    // Bregenz: Lat 47.5N, Alt 424m (near Lake Constance)
-    'Bregenz': [50, 45, 55, 70, 85, 95, 100, 95, 80, 70, 60, 55, 20, 25, 40, 60, 75, 85, 90, 80, 65, 50, 35, 25],
-    
-    // Eisenstadt: Lat 47.8N, Alt 262m
-    'Eisenstadt': [40, 35, 45, 55, 70, 80, 85, 80, 65, 55, 45, 40, 20, 25, 45, 65, 80, 90, 95, 85, 70, 55, 40, 25],
-    
-    // St. Poelten: Lat 48.2N, Alt 268m
-    'St. Poelten': [40, 40, 50, 60, 75, 85, 90, 85, 70, 60, 50, 45, 20, 25, 45, 65, 80, 90, 100, 90, 75, 60, 45, 30],
+var cityCoordinates = {
+    // AUSTRIA
+    'Wien': { latitude: 48.2082, longitude: 16.3738 },
+    'Graz': { latitude: 47.0707, longitude: 15.4395 },
+    'Linz': { latitude: 48.3064, longitude: 14.2858 },
+    'Salzburg': { latitude: 47.8095, longitude: 13.0550 },
+    'Innsbruck': { latitude: 47.2692, longitude: 11.3924 },
+    'Klagenfurt': { latitude: 46.6359, longitude: 14.3119 },
+    'Bregenz': { latitude: 47.5042, longitude: 9.7476 },
+    'Eisenstadt': { latitude: 47.8475, longitude: 16.5220 },
+    'St. Poelten': { latitude: 48.2050, longitude: 15.6121 },
     
     // GERMANY
-    'Berlin': [40, 35, 40, 50, 60, 70, 75, 70, 60, 50, 45, 40, 20, 25, 45, 65, 80, 85, 95, 85, 70, 55, 40, 25],
-    'Hamburg': [50, 45, 50, 55, 65, 70, 75, 70, 65, 60, 55, 50, 20, 25, 40, 60, 75, 85, 90, 80, 65, 50, 35, 25],
-    'Munich': [45, 40, 50, 65, 80, 90, 95, 90, 75, 65, 55, 50, 25, 30, 50, 70, 85, 95, 100, 90, 75, 60, 45, 30],
-    'Cologne': [50, 45, 50, 60, 70, 75, 80, 75, 65, 60, 55, 50, 25, 30, 50, 65, 80, 90, 95, 85, 70, 55, 40, 25],
-    'Frankfurt': [40, 35, 45, 55, 65, 75, 80, 75, 65, 55, 50, 45, 20, 25, 45, 60, 75, 85, 90, 80, 65, 50, 40, 25],
-    'Stuttgart': [45, 40, 50, 65, 75, 85, 90, 85, 70, 60, 50, 45, 25, 30, 50, 70, 85, 95, 100, 90, 75, 60, 45, 30],
-    'Duesseldorf': [45, 40, 50, 60, 70, 75, 80, 75, 65, 60, 55, 50, 25, 30, 45, 60, 75, 85, 90, 80, 65, 50, 40, 25],
-    'Dortmund': [50, 45, 50, 60, 70, 75, 80, 75, 65, 60, 55, 50, 20, 25, 45, 60, 75, 80, 85, 75, 60, 45, 35, 25],
-    'Hanover': [45, 40, 45, 55, 65, 75, 80, 75, 65, 55, 50, 45, 20, 25, 40, 55, 70, 80, 85, 75, 60, 45, 35, 25],
-    'Bremen': [50, 45, 50, 60, 70, 75, 80, 75, 65, 60, 55, 50, 20, 25, 40, 55, 70, 80, 85, 75, 60, 50, 40, 25],
-    'Leipzig': [40, 35, 40, 50, 60, 70, 75, 70, 60, 50, 45, 40, 20, 25, 45, 60, 75, 85, 90, 80, 65, 50, 40, 25],
-    'Dresden': [40, 35, 45, 55, 65, 75, 80, 75, 65, 55, 50, 45, 20, 25, 45, 60, 75, 85, 90, 80, 65, 50, 40, 25],
-    'Nuremberg': [45, 40, 50, 60, 70, 75, 80, 75, 65, 60, 55, 50, 25, 30, 45, 60, 75, 85, 90, 80, 65, 50, 40, 25],
+    'Berlin': { latitude: 52.5200, longitude: 13.4050 },
+    'Hamburg': { latitude: 53.5511, longitude: 9.9937 },
+    'Munich': { latitude: 48.1351, longitude: 11.5820 },
+    'Cologne': { latitude: 50.9375, longitude: 6.9603 },
+    'Frankfurt': { latitude: 50.1109, longitude: 8.6821 },
+    'Stuttgart': { latitude: 48.7758, longitude: 9.1829 },
+    'Duesseldorf': { latitude: 51.2277, longitude: 6.7735 },
+    'Dortmund': { latitude: 51.5136, longitude: 7.4653 },
+    'Hanover': { latitude: 52.3759, longitude: 9.7320 },
+    'Bremen': { latitude: 53.0793, longitude: 8.8017 },
+    'Leipzig': { latitude: 51.3397, longitude: 12.3731 },
+    'Dresden': { latitude: 51.0504, longitude: 13.7373 },
+    'Nuremberg': { latitude: 49.4521, longitude: 11.0767 },
     
     // SWITZERLAND
-    'Zuerich': [50, 45, 55, 70, 80, 90, 95, 90, 75, 65, 60, 55, 25, 30, 50, 70, 85, 95, 100, 90, 75, 60, 45, 30],
-    'Basel': [45, 40, 50, 65, 75, 85, 90, 85, 70, 60, 55, 50, 25, 30, 50, 65, 80, 90, 95, 85, 70, 55, 45, 30],
-    'Geneva': [50, 45, 55, 70, 85, 95, 100, 95, 80, 70, 60, 55, 25, 30, 50, 70, 85, 95, 100, 90, 75, 60, 45, 30],
-    'Bern': [45, 40, 50, 65, 80, 90, 95, 90, 75, 65, 55, 50, 20, 25, 40, 60, 75, 85, 90, 80, 65, 50, 40, 25],
-    'Lausanne': [55, 50, 60, 75, 90, 100, 105, 100, 85, 75, 65, 60, 25, 30, 50, 75, 90, 100, 110, 95, 80, 65, 50, 35],
-    'Winterthur': [45, 40, 50, 65, 75, 85, 90, 85, 70, 60, 55, 50, 25, 30, 45, 65, 80, 90, 95, 85, 70, 55, 45, 30],
-    'Lugano': [60, 55, 65, 80, 95, 105, 110, 105, 90, 80, 70, 65, 30, 35, 55, 75, 90, 100, 105, 95, 80, 65, 50, 35],
+    'Zuerich': { latitude: 47.3769, longitude: 8.5417 },
+    'Basel': { latitude: 47.5584, longitude: 7.5873 },
+    'Geneva': { latitude: 46.2044, longitude: 6.1432 },
+    'Bern': { latitude: 46.9481, longitude: 7.4474 },
+    'Lausanne': { latitude: 46.5197, longitude: 6.6323 },
+    'Winterthur': { latitude: 47.4995, longitude: 8.7358 },
+    'Lugano': { latitude: 46.0034, longitude: 8.9510 },
     
     // EUROPE
-    'Amsterdam': [60, 50, 55, 50, 55, 65, 70, 65, 60, 65, 70, 65, 25, 30, 45, 60, 75, 80, 85, 75, 60, 45, 35, 25],
-    'Brussels': [55, 50, 55, 60, 65, 75, 80, 75, 65, 60, 65, 60, 25, 30, 45, 60, 75, 85, 90, 80, 65, 50, 40, 30],
-    'Paris': [50, 45, 50, 55, 60, 70, 75, 70, 60, 55, 50, 45, 25, 30, 50, 65, 80, 85, 90, 80, 65, 50, 40, 30],
-    'London': [60, 50, 55, 50, 55, 60, 65, 60, 55, 60, 65, 60, 20, 25, 35, 50, 65, 75, 80, 70, 55, 45, 40, 30],
-    'Madrid': [35, 35, 40, 45, 50, 25, 10, 15, 30, 50, 55, 45, 35, 45, 70, 90, 110, 120, 115, 100, 75, 55, 40, 30],
-    'Barcelona': [40, 35, 40, 45, 50, 25, 20, 40, 55, 70, 75, 60, 35, 45, 65, 80, 95, 105, 100, 90, 70, 55, 45, 35],
-    'Rome': [65, 60, 60, 55, 45, 25, 15, 20, 45, 75, 90, 80, 30, 40, 60, 85, 105, 115, 110, 95, 75, 60, 45, 35],
-    'Milan': [55, 50, 60, 75, 90, 85, 80, 75, 65, 70, 80, 70, 25, 35, 55, 75, 95, 105, 100, 90, 75, 60, 45, 35],
-    'Prague': [35, 35, 40, 50, 65, 75, 80, 75, 65, 55, 45, 40, 20, 25, 40, 55, 75, 85, 90, 80, 65, 50, 40, 30],
-    'Warsaw': [35, 30, 35, 45, 60, 70, 75, 70, 60, 50, 40, 35, 20, 25, 40, 55, 75, 85, 90, 80, 65, 50, 40, 30],
-    'Copenhagen': [45, 40, 40, 45, 55, 60, 65, 60, 55, 60, 55, 50, 20, 25, 35, 50, 65, 75, 80, 70, 60, 50, 45, 35],
-    'Lisbon': [80, 70, 75, 55, 45, 15, 5, 5, 25, 60, 85, 95, 35, 45, 60, 75, 90, 95, 90, 80, 65, 55, 50, 45],
-    'Athens': [50, 45, 40, 35, 20, 5, 2, 5, 15, 40, 55, 65, 35, 45, 60, 80, 95, 105, 100, 90, 75, 65, 55, 45],
-    'Istanbul': [70, 60, 65, 55, 45, 25, 15, 10, 25, 45, 60, 80, 30, 40, 55, 75, 90, 100, 95, 85, 70, 60, 55, 50],
+    'Amsterdam': { latitude: 52.3676, longitude: 4.9041 },
+    'Brussels': { latitude: 50.8503, longitude: 4.3517 },
+    'Paris': { latitude: 48.8566, longitude: 2.3522 },
+    'London': { latitude: 51.5074, longitude: -0.1278 },
+    'Madrid': { latitude: 40.4168, longitude: -3.7038 },
+    'Barcelona': { latitude: 41.3851, longitude: 2.1734 },
+    'Rome': { latitude: 41.9028, longitude: 12.4964 },
+    'Milan': { latitude: 45.4642, longitude: 9.1900 },
+    'Prague': { latitude: 50.0755, longitude: 14.4378 },
+    'Warsaw': { latitude: 52.2297, longitude: 21.0122 },
+    'Copenhagen': { latitude: 55.6761, longitude: 12.5683 },
+    'Lisbon': { latitude: 38.7223, longitude: -9.1393 },
+    'Athens': { latitude: 37.9838, longitude: 23.7275 },
+    'Istanbul': { latitude: 41.0082, longitude: 28.9784 },
     
     // NORTH AMERICA
-    'New York': [90, 80, 100, 100, 105, 95, 105, 100, 85, 90, 95, 90, 30, 35, 50, 70, 90, 100, 105, 100, 85, 70, 50, 35],
-    'Los Angeles': [60, 50, 45, 25, 15, 5, 0, 5, 10, 15, 25, 45, 45, 55, 75, 90, 100, 105, 100, 90, 75, 60, 50, 45],
-    'Chicago': [45, 40, 55, 75, 85, 90, 95, 90, 75, 70, 60, 50, 25, 30, 45, 65, 85, 95, 100, 90, 75, 60, 50, 40],
-    'Toronto': [50, 45, 55, 70, 80, 85, 90, 85, 75, 70, 75, 70, 25, 30, 40, 60, 80, 90, 95, 85, 70, 55, 45, 35],
-    'Vancouver': [180, 130, 110, 80, 65, 55, 45, 40, 50, 100, 180, 170, 25, 30, 40, 55, 70, 80, 85, 75, 65, 55, 45, 40],
+    'New York': { latitude: 40.7128, longitude: -74.0060 },
+    'Los Angeles': { latitude: 34.0522, longitude: -118.2437 },
+    'Chicago': { latitude: 41.8781, longitude: -87.6298 },
+    'Toronto': { latitude: 43.6511, longitude: -79.3470 },
+    'Vancouver': { latitude: 49.2827, longitude: -123.1207 },
     
     // SOUTH AMERICA
-    'Sao Paulo': [220, 190, 140, 65, 50, 45, 40, 35, 45, 80, 130, 170, 70, 80, 85, 80, 70, 65, 70, 80, 85, 95, 90, 80],
-    'Buenos Aires': [95, 90, 95, 80, 70, 55, 50, 50, 60, 80, 95, 100, 70, 80, 85, 70, 55, 50, 55, 70, 85, 95, 90, 80],
+    'Sao Paulo': { latitude: -23.5505, longitude: -46.6333 },
+    'Buenos Aires': { latitude: -34.6037, longitude: -58.3816 },
     
     // AFRICA
-    'Cape Town': [15, 15, 20, 40, 65, 90, 80, 75, 40, 30, 15, 10, 65, 75, 80, 65, 45, 35, 40, 45, 55, 65, 70, 60],
-    'Johannesburg': [125, 95, 90, 55, 10, 5, 2, 5, 25, 65, 105, 120, 60, 70, 75, 70, 65, 60, 55, 65, 85, 90, 80, 70],
-    'Nairobi': [50, 40, 60, 100, 150, 80, 20, 25, 30, 50, 100, 90, 75, 80, 85, 80, 75, 70, 65, 70, 80, 85, 80, 75],
-    'Cairo': [5, 5, 5, 5, 2, 0, 0, 0, 0, 0, 5, 15, 50, 60, 75, 85, 95, 105, 110, 100, 90, 80, 70, 60],
-    'Lagos': [35, 40, 75, 150, 220, 290, 250, 165, 230, 285, 105, 40, 80, 85, 90, 80, 75, 70, 65, 60, 70, 80, 75, 70],
+    'Cape Town': { latitude: -33.9249, longitude: 18.4241 },
+    'Johannesburg': { latitude: -26.2041, longitude: 28.0473 },
+    'Nairobi': { latitude: -1.2921, longitude: 36.8219 },
+    'Cairo': { latitude: 30.0444, longitude: 31.2357 },
+    'Lagos': { latitude: 6.5244, longitude: 3.3792 },
     
     // MIDDLE EAST
-    'Riyadh': [10, 5, 15, 25, 10, 0, 0, 0, 0, 5, 15, 10, 50, 65, 80, 90, 105, 115, 110, 100, 90, 75, 65, 55],
-    'Dubai': [10, 15, 10, 5, 0, 0, 0, 0, 0, 2, 5, 15, 60, 70, 85, 95, 105, 110, 105, 95, 85, 70, 60, 55],
+    'Riyadh': { latitude: 24.7136, longitude: 46.6753 },
+    'Dubai': { latitude: 25.2048, longitude: 55.2708 },
     
     // ASIA
-    'Mumbai': [4, 2, 5, 10, 15, 450, 600, 550, 300, 160, 35, 10, 70, 80, 90, 95, 85, 80, 75, 70, 80, 90, 85, 80],
-    'Delhi': [19, 21, 15, 13, 22, 68, 195, 257, 244, 56, 4, 6, 65, 75, 85, 95, 100, 95, 90, 85, 80, 75, 70, 60],
-    'Bangkok': [10, 20, 30, 60, 150, 140, 130, 150, 250, 240, 60, 10, 75, 85, 90, 85, 80, 75, 70, 65, 70, 80, 75, 70],
-    'Singapore': [210, 160, 170, 150, 160, 130, 130, 150, 160, 180, 250, 290, 75, 80, 85, 80, 75, 70, 70, 65, 70, 80, 75, 70],
-    'Tokyo': [45, 55, 95, 130, 140, 170, 150, 160, 190, 195, 90, 50, 40, 45, 55, 70, 85, 90, 95, 85, 75, 65, 55, 45],
+    'Mumbai': { latitude: 19.0760, longitude: 72.8777 },
+    'Delhi': { latitude: 28.7041, longitude: 77.1025 },
+    'Bangkok': { latitude: 13.7563, longitude: 100.5018 },
+    'Singapore': { latitude: 1.3521, longitude: 103.8198 },
+    'Tokyo': { latitude: 35.6762, longitude: 139.6503 },
     
     // AUSTRALIA
-    'Sydney': [100, 115, 125, 115, 100, 120, 95, 80, 65, 75, 80, 75, 75, 80, 85, 70, 60, 55, 50, 55, 65, 75, 80, 70],
-    'Auckland': [80, 75, 90, 95, 100, 125, 120, 105, 95, 90, 80, 85, 65, 70, 75, 80, 75, 70, 70, 75, 80, 85, 80, 70],
+    'Sydney': { latitude: -33.8688, longitude: 151.2093 },
+    'Auckland': { latitude: -36.8485, longitude: 174.7633 },
 };
 
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 // Kc Profiles for each plant
 // Values for Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec
-// From FAO-56 and XLSX data
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
 // ============================================
 
-const kcProfiles = {
-    // From XLSX - Landscape plants (German names)
+var kcProfiles = {
     'Rasen cool-season (sunny)': [0.70, 0.70, 0.80, 0.95, 1.00, 1.05, 1.05, 1.00, 0.90, 0.80, 0.75, 0.70],
     'Rasen warm-season (sunny)': [0.40, 0.45, 0.60, 0.75, 0.90, 1.00, 1.05, 1.00, 0.85, 0.65, 0.50, 0.40],
     'Stauden sonnig': [0.60, 0.60, 0.70, 0.80, 0.90, 0.95, 0.95, 0.90, 0.80, 0.70, 0.65, 0.60],
@@ -191,10 +169,16 @@ const kcProfiles = {
 };
 
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 // Kc Profile Descriptions for Tooltips
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const kcDescriptions = {
+var kcDescriptions = {
     // Presets
     'Street & Shade Trees': 'Mature deciduous trees (e.g., Oak, Linden, Maple). Kc values: 0.3-0.9, peaks in summer.',
     'Conifers': 'Mature coniferous trees (e.g., Pine, Spruce, Fir). Kc values: 0.4-0.85, consistent year-round.',
@@ -246,10 +230,16 @@ const kcDescriptions = {
 };
 
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 // Plant Search Database - All available plants with metadata
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const plantDatabase = [
+var plantDatabase = [
     // Landscape Plants
     { id: 'lawn', name: 'Lawn', botanical: 'Grass spp.', kc: 'Lawn', category: 'Ground Cover', type: 'landscape', avgKc: 0.85 },
     { id: 'street_trees', name: 'Street & Shade Trees', botanical: 'Various', kc: 'Street & Shade Trees', category: 'Trees', type: 'landscape', avgKc: 0.6 },
@@ -309,10 +299,16 @@ const plantDatabase = [
 ];
 
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 // Preset plant selections mapping to Kc profiles
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const presets = {
+var presets = {
     'street_trees': 'Mature Deciduous Tree',
     'conifers': 'Mature Conifer',
     'climbers': 'Climbing Plants (Ivy/Wild Vine)',
@@ -328,10 +324,16 @@ const presets = {
 };
 
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 // Preset Species Examples (3 botanical names per preset)
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const presetSpeciesExamples = {
+var presetSpeciesExamples = {
     'street_trees': ['Quercus robur', 'Tilia cordata', 'Acer platanoides'],
     'conifers': ['Pinus sylvestris', 'Picea abies', 'Abies alba'],
     'climbers': ['Hedera helix', 'Parthenocissus tricuspidata', 'Clematis montana'],
@@ -347,10 +349,16 @@ const presetSpeciesExamples = {
 };
 
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 // English plant names for display
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const plantNamesEN = {
+var plantNamesEN = {
     'Rasen cool-season (sunny)': 'Cool Season Grass (sunny)',
     'Rasen warm-season (sunny)': 'Warm Season Grass (sunny)',
     'Stauden sonnig': 'Herbaceous Perennials (sunny)',
@@ -393,12 +401,18 @@ const plantNamesEN = {
 };
 
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 // Situation demand and rain factors
 // Demand factors: how much more water plants need in different situations
 // Rain factors: how much rain is effectively used (shelter, runoff, etc.)
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const situationFactors = {
+var situationFactors = {
     'open': { demand: 1.0, rain: 1.0, description: 'Full sun, no shade - Standard conditions' },
     'wall': { demand: 1.15, rain: 0.75, description: 'South/west facing wall - Increased heat reflection (+15% demand, 75% rain effectiveness)' },
     'overhang': { demand: 1.0, rain: 0.3, description: 'Under roof overhang - Full sun but reduced rain (only 30% of rain reaches plants)' },
@@ -407,62 +421,74 @@ const situationFactors = {
 };
 
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 // Irrigation types and their configurations
 // Flow rates are now in L/min for consistency
-// For drip/soaker: flow rate is per emitter/meter
+// For drip: flow rate is per emitter
 // For micro/sprinkler: flow rate is per sprayer/head
 // Coverage area is used to calculate total flow
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const irrigationTypes = {
+var irrigationTypes = {
     'drip': {
         name: 'Drip Line',
         daysPerWeek: 5,
         description: 'Efficient, targeted watering at plant roots',
-        flowRate: { 2: 1.6, 4: 2.0, 6: 2.4 }, // L/min per emitter
+        flowRate: { 2: 1.6, 4: 2.0, 6: 2.4 }, // L/hour per emitter
         emitterSpacing: 0.3, // m between emitters
-        // For a 10m² area with 0.3m spacing: ~33 emitters
-        coverageFactor: 3.0 // Emitters per m² (1 / 0.33 spacing)
-    },
-    'soaker': {
-        name: 'Soaker Hose',
-        daysPerWeek: 4,
-        description: 'Slow, even watering along hose length',
-        flowRate: { 2: 2.5, 4: 3.0, 6: 3.5 }, // L/min per m of hose
-        emitterSpacing: 0.3, // m between holes
-        coverageFactor: 2.0 // Meters of hose per m²
+        coverageFactor: 3.0, // Emitters per m² (1 / 0.33 spacing)
+        unit: 'L/hour' // Flow rate unit
     },
     'micro': {
         name: 'Micro-Sprayer',
         daysPerWeek: 3,
         description: 'Fine mist for delicate plants',
-        flowRate: { 2: 40, 4: 50, 6: 60 }, // L/h per sprayer
+        flowRate: { 2: 40, 4: 50, 6: 60 }, // L/hour per sprayer
         coverage: 2, // m² per sprayer
-        coverageFactor: 0.5 // Sprayers per m² (1 / coverage)
+        coverageFactor: 0.5, // Sprayers per m² (1 / coverage)
+        unit: 'L/hour' // Flow rate unit
     },
     'sprinkler': {
         name: 'Pop-up Sprinkler',
         daysPerWeek: 2,
         description: 'Wide area coverage, higher flow',
-        flowRate: { 2: 100, 4: 120, 6: 140 }, // L/h per sprinkler
+        flowRate: { 2: 100, 4: 120, 6: 140 }, // L/hour per sprinkler
         coverage: 100, // m² per sprinkler
-        coverageFactor: 0.01 // Sprinklers per m² (1 / coverage)
-    },
+        coverageFactor: 0.01, // Sprinklers per m² (1 / coverage)
+        unit: 'L/hour' // Flow rate unit
+    }
 };
 
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 // Month names
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+var monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
 // ============================================
 // Countries and their cities
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const citiesByCountry = {
+var citiesByCountry = {
     'AT': ['Wien', 'Graz', 'Linz', 'Salzburg', 'Innsbruck', 'Klagenfurt', 'Eisenstadt', 'Bregenz', 'St. Poelten'],
     'DE': ['Berlin', 'Hamburg', 'Munich', 'Cologne', 'Frankfurt', 'Stuttgart', 'Duesseldorf', 'Dortmund', 'Hanover', 'Bremen', 'Leipzig', 'Dresden', 'Nuremberg'],
     'CH': ['Zuerich', 'Basel', 'Geneva', 'Bern', 'Lausanne', 'Winterthur', 'Lugano'],
@@ -478,14 +504,20 @@ const citiesByCountry = {
 };
 
 // All cities list for search
-const allCities = Object.values(citiesByCountry).flat().filter((v, i, a) => a.indexOf(v) === i).sort();
+var allCities = Object.values(citiesByCountry).flat().filter((v, i, a) => a.indexOf(v) === i).sort();
 
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
 // ============================================
 // Sanity Check Values
 // Reference values for validation
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const sanityChecks = {
+var sanityChecks = {
     // Typical ET0 ranges (mm/month) by climate zone
     et0: {
         min: 10,  // Minimum monthly ET0 (winter, cold climates)
@@ -530,11 +562,217 @@ const sanityChecks = {
     }
 };
 
+
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+// Seasonal Factors for different plant types
+// These factors adjust watering needs by season
+// Based on plant physiology and growth patterns
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+
+var seasonalFactors = {
+    grass: { spring: 0.80, summer: 1.00, autumn: 0.70, winter: 0.40 },
+    deciduous: { spring: 0.85, summer: 1.00, autumn: 0.60, winter: 0.30 },
+    evergreen: { spring: 0.80, summer: 1.00, autumn: 0.75, winter: 0.50 },
+    dry: { spring: 0.70, summer: 1.00, autumn: 0.60, winter: 0.20 },
+    general: { spring: 0.80, summer: 1.00, autumn: 0.70, winter: 0.50 }
+};
+
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+// Helper function to get plant type category
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+
+function getPlantType(plantKey) {
+    if (!plantKey) return 'general';
+    const dryTypes = ['dry perennials', 'succulents', 'xerophytes', 'sukkulenten', 'perennials_dry'];
+    const grassTypes = ['lawn', 'grass', 'rasen', 'perennials_wet', 'perennials_medium', 'seasonal_bedding', 
+                       'ornamental_grasses', 'ground_cover'];
+    const deciduousTypes = ['hedges', 'tree', 'deciduous', 'shrubs', 'strauch_laub', 'baum_laub'];
+    const evergreenTypes = ['conifer', 'evergreen', 'strauch_immergrn', 'baum_nadel'];
+    const plantName = plantKey.toString().toLowerCase();
+    if (dryTypes.some(t => plantName.includes(t))) return 'dry';
+    if (grassTypes.some(t => plantName.includes(t))) return 'grass';
+    if (deciduousTypes.some(t => plantName.includes(t))) return 'deciduous';
+    if (evergreenTypes.some(t => plantName.includes(t))) return 'evergreen';
+    if (presets && plantKey in presets) {
+        const profile = presets[plantKey];
+        if (profile && profile.toLowerCase().includes('dry')) return 'dry';
+        if (profile && profile.toLowerCase().includes('lawn')) return 'grass';
+        if (profile && profile.toLowerCase().includes('tree')) return 'deciduous';
+        if (profile && profile.toLowerCase().includes('conifer')) return 'evergreen';
+    }
+    return 'general';
+}
+
+function getSeasonalFactor(plantKey, season) {
+    const plantType = getPlantType(plantKey);
+    const factors = seasonalFactors[plantType] || seasonalFactors.general;
+    return factors[season] || 0.7;
+}
+
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+// Soil Type Factors for irrigation adjustment
+// Clay soils have slow infiltration, need more frequent, shorter sessions
+// Sandy soils have fast infiltration, need less frequent, longer sessions
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+
+var soilTypeFactors = {
+    clay: {
+        infiltrationRate: 0.25, // cm/hour
+        sessionMultiplier: 1.3, // Increase session time by 30% for better infiltration
+        frequencyMultiplier: 1.5, // Increase frequency by 50%
+        maxSessionMinutes: 30, // Split sessions longer than this
+        description: 'Slow drainage, high water retention (FAO-56 class: Clay, Infiltration: 0.25 cm/h = 6.94 × 10^-7 m/s)'
+    },
+    silt: {
+        infiltrationRate: 0.5, // cm/hour
+        sessionMultiplier: 1.0, // No adjustment needed
+        frequencyMultiplier: 1.0,
+        maxSessionMinutes: 60,
+        description: 'Medium drainage, moderate water retention (FAO-56 class: Silt, Infiltration: 0.5 cm/h = 1.39 × 10^-6 m/s)'
+    },
+    sand: {
+        infiltrationRate: 1.5, // cm/hour
+        sessionMultiplier: 0.8, // Decrease session time by 20%
+        frequencyMultiplier: 0.7, // Decrease frequency by 30%
+        maxSessionMinutes: 90,
+        description: 'Fast drainage, low water retention (FAO-56 class: Sand, Infiltration: 1.5 cm/h = 4.17 × 10^-6 m/s)'
+    },
+    sandyLoam: {
+        infiltrationRate: 1.0, // cm/hour - RECOMMENDED DEFAULT
+        sessionMultiplier: 1.0,
+        frequencyMultiplier: 1.0,
+        maxSessionMinutes: 60,
+        description: 'Good drainage, balanced water retention (FAO-56 class: Sandy Loam, Infiltration: 1.0 cm/h = 2.78 × 10^-6 m/s)'
+    },
+        loam: {
+        infiltrationRate: 0.75, // cm/hour
+        sessionMultiplier: 1.0,
+        frequencyMultiplier: 1.0,
+        maxSessionMinutes: 60,
+        description: 'Balanced drainage, good water retention (FAO-56 class: Loam, Infiltration: 0.75 cm/h = 2.08 × 10^-6 m/s)'
+    },
+    standard: {
+        infiltrationRate: 1.0, // cm/hour
+        sessionMultiplier: 1.0,
+        frequencyMultiplier: 1.0,
+        maxSessionMinutes: 60,
+        description: 'Standard reference soil (FAO-56 class: Reference, Infiltration: 1.0 cm/h = 2.78 × 10^-6 m/s)'
+    }
+};
+
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+// Slope Factors for effective rainfall adjustment
+// Steeper slopes have more runoff, less effective rainfall
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+
+var slopeFactors = {
+    flat: { gradient: 0, rainEffectiveness: 1.0, description: '0-2% slope' },
+    gentle: { gradient: 5, rainEffectiveness: 0.95, description: '2-5% slope' },
+    moderate: { gradient: 10, rainEffectiveness: 0.90, description: '5-10% slope' },
+    steep: { gradient: 20, rainEffectiveness: 0.80, description: '10-20% slope' },
+    very_steep: { gradient: 30, rainEffectiveness: 0.70, description: '>20% slope' }
+};
+
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+// Soil type selection options
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+
+var soilTypes = ['sandyLoam', 'clay', 'silt', 'sand', 'loam', 'standard'];
+
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+// Slope selection options
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+
+var slopeOptions = ['flat', 'gentle', 'moderate', 'steep', 'very_steep'];
+
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+// Helper function to get soil factor
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+
+function getSoilFactor(soilType) {
+    return soilTypeFactors[soilType] || soilTypeFactors.standard;
+}
+
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+// Helper function to get slope factor
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+
+function getSlopeFactor(slope) {
+    return slopeFactors[slope] || slopeFactors.flat;
+}
+
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+// Global variables for soil and slope settings
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
+
+
+
+
+// ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
 // ============================================
 // English translations for UI
 // ============================================
+// Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification
+// Source: FAO-56 Paper (Allen et al., 1998)
+// ============================================
 
-const translations = {
+var translations = {
     en: {
         site: 'Site',
         plant: 'Plant',
