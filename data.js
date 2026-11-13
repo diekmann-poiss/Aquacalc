@@ -296,7 +296,128 @@ var plantDatabase = [
     { id: 'sedum', name: 'Sedum', botanical: 'Sedum spp.', kc: 'Succulents/Xerophytes', category: 'Succulents', type: 'landscape', avgKc: 0.35 },
     { id: 'hortensia', name: 'Hydrangea', botanical: 'Hydrangea macrophylla', kc: 'Deciduous Shrubs', category: 'Shrubs', type: 'landscape', avgKc: 0.6 },
     { id: 'buxus', name: 'Boxwood', botanical: 'Buxus sempervirens', kc: 'Evergreen Shrubs', category: 'Shrubs', type: 'landscape', avgKc: 0.65 },
+    
+    // Climbing Plants for Vertical Greening with specific Kc values
+    { id: 'actinidia', name: 'Kiwi', botanical: 'Actinidia deliciosa', kc: 'Kiwi', category: 'Climbers', type: 'landscape', avgKc: 0.75 },
+    { id: 'akebia', name: 'Finger-leaf Akebia', botanical: 'Akebia quinata', kc: 'Finger-leaf Akebia', category: 'Climbers', type: 'landscape', avgKc: 0.65 },
+    { id: 'aristolochia', name: 'Pipevine', botanical: 'Aristolochia macrophylla', kc: 'Pipevine', category: 'Climbers', type: 'landscape', avgKc: 0.7 },
+    { id: 'asarina', name: 'Climbing Snapdragon', botanical: 'Asarina scandens', kc: 'Climbing Snapdragon', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'bryonia', name: 'White Bryony', botanical: 'Bryonia dioica', kc: 'White Bryony', category: 'Climbers', type: 'landscape', avgKc: 0.6 },
+    { id: 'campsis', name: 'Trumpet Vine', botanical: 'Campsis radicans', kc: 'Trumpet Vine', category: 'Climbers', type: 'landscape', avgKc: 0.65 },
+    { id: 'celastrus', name: 'Oriental Bittersweet', botanical: 'Celastrus orbiculatus', kc: 'Oriental Bittersweet', category: 'Climbers', type: 'landscape', avgKc: 0.6 },
+    { id: 'clematis_montana', name: 'Mountain Clematis', botanical: 'Clematis montana', kc: 'Mountain Clematis', category: 'Climbers', type: 'landscape', avgKc: 0.5 },
+    { id: 'clematis_vitalba', name: 'Travelers Joy Clematis', botanical: 'Clematis vitalba', kc: 'Travelers Joy Clematis', category: 'Climbers', type: 'landscape', avgKc: 0.5 },
+    { id: 'cobaea', name: 'Cup and Saucer Vine', botanical: 'Cobaea scandens', kc: 'Cup and Saucer Vine', category: 'Climbers', type: 'landscape', avgKc: 0.6 },
+    { id: 'fallopia', name: 'Russian Vine / Mile-a-minute', botanical: 'Fallopia baldschuanica', kc: 'Russian Vine', category: 'Climbers', type: 'landscape', avgKc: 0.7 },
+    { id: 'gynostemma', name: 'Jiaogulan', botanical: 'Gynostemma pentaphyllum', kc: 'Jiaogulan', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'hedera_helix', name: 'English Ivy', botanical: 'Hedera helix', kc: 'English Ivy', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'humulus', name: 'Hops', botanical: 'Humulus lupulus', kc: 'Hops', category: 'Climbers', type: 'landscape', avgKc: 0.75 },
+    { id: 'hydrangea_anomala', name: 'Climbing Hydrangea', botanical: 'Hydrangea anomala', kc: 'Climbing Hydrangea', category: 'Climbers', type: 'landscape', avgKc: 0.65 },
+    { id: 'ipomea_lobata', name: 'Spanish Flag', botanical: 'Ipomoea lobata', kc: 'Spanish Flag', category: 'Climbers', type: 'landscape', avgKc: 0.6 },
+    { id: 'ipomoea_purpurea', name: 'Morning Glory', botanical: 'Ipomoea purpurea', kc: 'Morning Glory', category: 'Climbers', type: 'landscape', avgKc: 0.6 },
+    { id: 'jasminum', name: 'Common Jasmine', botanical: 'Jasminum officinale', kc: 'Common Jasmine', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'lathyrus', name: 'Sweet Pea', botanical: 'Lathyrus odoratus', kc: 'Sweet Pea', category: 'Climbers', type: 'landscape', avgKc: 0.5 },
+    { id: 'lonicera_caprifolium', name: 'Italian Honeysuckle', botanical: 'Lonicera caprifolium', kc: 'Italian Honeysuckle', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'lonicera_heckrotii', name: 'Goldflame Honeysuckle', botanical: 'Lonicera heckrotii', kc: 'Goldflame Honeysuckle', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'lonicera_henryi', name: 'Evergreen Honeysuckle', botanical: 'Lonicera henryi', kc: 'Evergreen Honeysuckle', category: 'Climbers', type: 'landscape', avgKc: 0.5 },
+    { id: 'parthenocissus_quinquefolia', name: 'Virginia Creeper', botanical: 'Parthenocissus quinquefolia', kc: 'Virginia Creeper', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'parthenocissus_tricuspidata', name: 'Boston Ivy', botanical: 'Parthenocissus tricuspidata', kc: 'Boston Ivy', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'passiflora', name: 'Passionflower', botanical: 'Passiflora caerulea', kc: 'Passionflower', category: 'Climbers', type: 'landscape', avgKc: 0.6 },
+    { id: 'phaseolus', name: 'Runner Bean', botanical: 'Phaseolus coccineus', kc: 'Runner Bean', category: 'Climbers', type: 'landscape', avgKc: 0.75 },
+    { id: 'rosa_climbing', name: 'Climbing Rose', botanical: 'Rosa spp.', kc: 'Climbing Rose', category: 'Climbers', type: 'landscape', avgKc: 0.5 },
+    { id: 'solanum_crispum', name: 'Chilean Potato Tree', botanical: 'Solanum crispum', kc: 'Chilean Potato Tree', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'stauntonia', name: 'Rosenbecher', botanical: 'Stauntonia hexaphylla', kc: 'Rosenbecher', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'thunbergia', name: 'Black-eyed Susan Vine', botanical: 'Thunbergia alata', kc: 'Black-eyed Susan Vine', category: 'Climbers', type: 'landscape', avgKc: 0.5 },
+    { id: 'tropaeolum', name: 'Nasturtium', botanical: 'Tropaeolum majus', kc: 'Nasturtium', category: 'Climbers', type: 'landscape', avgKc: 0.5 },
+    { id: 'vitis_coignetiae', name: 'Crimson Glory Vine', botanical: 'Vitis coignetiae', kc: 'Crimson Glory Vine', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'vitis_vinifera_climbing', name: 'Grapevine Climbing', botanical: 'Vitis vinifera', kc: 'Grapevine Climbing', category: 'Climbers', type: 'landscape', avgKc: 0.55 },
+    { id: 'wisteria', name: 'Wisteria', botanical: 'Wisteria floribunda/sinensis', kc: 'Wisteria', category: 'Climbers', type: 'landscape', avgKc: 0.65 },
 ];
+
+// ============================================
+// Monthly Kc Profiles for Climbing Plants (Northern Hemisphere: Jan-Dec)
+// Based on FAO-56 methodology and phenological data
+// Source: FAO-56 Paper (Allen et al., 1998) - typical crop coefficients
+//         Adapted for climbing plants with seasonal growth patterns
+// Note: For Southern Hemisphere, months are reversed automatically
+// Format: [Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec]
+// Display format: "botanical_name (common_name)"
+// ============================================
+
+var climbingPlantKcProfiles = {
+    // Deciduous climbers (laubabwerfend) - Winter low, Summer high
+    'actinidia': { name: 'Actinidia deliciosa (Kiwi)', months: [0.4, 0.4, 0.55, 0.75, 0.9, 1.05, 1.1, 1.05, 0.9, 0.7, 0.5, 0.4] },
+    'akebia': { name: 'Akebia quinata (Finger-leaf Akebia)', months: [0.35, 0.35, 0.45, 0.65, 0.75, 0.85, 0.85, 0.8, 0.7, 0.55, 0.4, 0.35] },
+    'aristolochia': { name: 'Aristolochia macrophylla (Pipevine)', months: [0.3, 0.3, 0.4, 0.6, 0.75, 0.85, 0.9, 0.85, 0.7, 0.5, 0.35, 0.3] },
+    'asarina': { name: 'Asarina scandens (Climbing Snapdragon)', months: [0.25, 0.25, 0.35, 0.5, 0.65, 0.75, 0.75, 0.7, 0.6, 0.4, 0.3, 0.25] },
+    'bryonia': { name: 'Bryonia dioica (White Bryony)', months: [0.3, 0.3, 0.4, 0.6, 0.7, 0.8, 0.8, 0.75, 0.65, 0.5, 0.35, 0.3] },
+    'campsis': { name: 'Campsis radicans (Trumpet Vine)', months: [0.35, 0.35, 0.45, 0.65, 0.8, 0.9, 1.0, 0.95, 0.8, 0.6, 0.4, 0.35] },
+    'celastrus': { name: 'Celastrus orbiculatus (Oriental Bittersweet)', months: [0.3, 0.3, 0.4, 0.6, 0.75, 0.85, 0.9, 0.85, 0.7, 0.55, 0.35, 0.3] },
+    'clematis_montana': { name: 'Clematis montana (Mountain Clematis)', months: [0.3, 0.3, 0.45, 0.65, 0.8, 0.9, 0.9, 0.85, 0.7, 0.5, 0.35, 0.3] },
+    'clematis_vitalba': { name: 'Clematis vitalba (Travelers Joy Clematis)', months: [0.3, 0.3, 0.45, 0.65, 0.8, 0.9, 0.9, 0.85, 0.7, 0.5, 0.35, 0.3] },
+    'cobaea': { name: 'Cobaea scandens (Cup and Saucer Vine)', months: [0.25, 0.25, 0.35, 0.5, 0.7, 0.85, 0.9, 0.85, 0.7, 0.5, 0.3, 0.25] },
+    'fallopia': { name: 'Fallopia baldschuanica (Russian Vine)', months: [0.35, 0.35, 0.45, 0.65, 0.8, 0.95, 1.05, 1.0, 0.85, 0.65, 0.4, 0.35] },
+    'gynostemma': { name: 'Gynostemma pentaphyllum (Jiaogulan)', months: [0.3, 0.3, 0.4, 0.55, 0.7, 0.8, 0.85, 0.8, 0.7, 0.55, 0.4, 0.3] },
+    'hedera_helix': { name: 'Hedera helix (English Ivy)', months: [0.5, 0.5, 0.55, 0.6, 0.65, 0.7, 0.7, 0.65, 0.6, 0.55, 0.5, 0.5] },
+    'humulus': { name: 'Humulus lupulus (Hops)', months: [0.4, 0.4, 0.55, 0.75, 0.9, 1.0, 1.1, 1.05, 0.9, 0.7, 0.5, 0.4] },
+    'hydrangea_anomala': { name: 'Hydrangea anomala (Climbing Hydrangea)', months: [0.35, 0.35, 0.45, 0.65, 0.8, 0.9, 0.95, 0.9, 0.8, 0.6, 0.4, 0.35] },
+    'ipomea_lobata': { name: 'Ipomoea lobata (Spanish Flag)', months: [0.2, 0.2, 0.25, 0.4, 0.6, 0.8, 0.9, 0.85, 0.7, 0.5, 0.3, 0.2] },
+    'ipomoea_purpurea': { name: 'Ipomoea purpurea (Morning Glory)', months: [0.2, 0.2, 0.25, 0.45, 0.7, 0.9, 1.0, 0.9, 0.75, 0.5, 0.3, 0.2] },
+    'jasmine': { name: 'Jasminum officinale (Common Jasmine)', months: [0.4, 0.4, 0.5, 0.65, 0.8, 0.9, 0.95, 0.9, 0.8, 0.6, 0.45, 0.4] },
+    'lathyrus': { name: 'Lathyrus odoratus (Sweet Pea)', months: [0.2, 0.2, 0.3, 0.5, 0.7, 0.85, 0.9, 0.85, 0.7, 0.5, 0.3, 0.2] },
+    'lonicera_caprifolium': { name: 'Lonicera caprifolium (Italian Honeysuckle)', months: [0.35, 0.35, 0.45, 0.65, 0.8, 0.9, 0.95, 0.9, 0.75, 0.6, 0.4, 0.35] },
+    'lonicera_heckrotii': { name: 'Lonicera heckrotii (Goldflame Honeysuckle)', months: [0.35, 0.35, 0.45, 0.65, 0.8, 0.9, 0.95, 0.9, 0.75, 0.6, 0.4, 0.35] },
+    'lonicera_henryi': { name: 'Lonicera henryi (Evergreen Honeysuckle)', months: [0.45, 0.45, 0.5, 0.55, 0.6, 0.65, 0.65, 0.6, 0.55, 0.5, 0.45, 0.45] },
+    'parthenocissus_quinquefolia': { name: 'Parthenocissus quinquefolia (Virginia Creeper)', months: [0.3, 0.3, 0.4, 0.6, 0.75, 0.85, 0.9, 0.85, 0.7, 0.5, 0.35, 0.3] },
+    'parthenocissus_tricuspidata': { name: 'Parthenocissus tricuspidata (Boston Ivy)', months: [0.3, 0.3, 0.4, 0.6, 0.75, 0.85, 0.9, 0.85, 0.7, 0.5, 0.35, 0.3] },
+    'passiflora': { name: 'Passiflora caerulea (Passionflower)', months: [0.35, 0.35, 0.45, 0.6, 0.75, 0.85, 0.9, 0.85, 0.75, 0.6, 0.45, 0.35] },
+    'phaseolus': { name: 'Phaseolus coccineus (Runner Bean)', months: [0.3, 0.3, 0.4, 0.6, 0.8, 1.0, 1.1, 1.0, 0.85, 0.6, 0.4, 0.3] },
+    'rosa_climbing': { name: 'Rosa spp. (Climbing Rose)', months: [0.3, 0.3, 0.4, 0.55, 0.7, 0.85, 0.9, 0.85, 0.7, 0.5, 0.35, 0.3] },
+    'solanum_crispum': { name: 'Solanum crispum (Chilean Potato Tree)', months: [0.4, 0.4, 0.5, 0.65, 0.8, 0.9, 0.95, 0.9, 0.75, 0.6, 0.45, 0.4] },
+    'stauntonia': { name: 'Stauntonia hexaphylla (Rosenbecher)', months: [0.4, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.8, 0.7, 0.55, 0.45, 0.4] },
+    'thunbergia': { name: 'Thunbergia alata (Black-eyed Susan Vine)', months: [0.2, 0.2, 0.25, 0.4, 0.6, 0.8, 0.9, 0.85, 0.7, 0.5, 0.3, 0.2] },
+    'tropaeolum': { name: 'Tropaeolum majus (Nasturtium)', months: [0.25, 0.25, 0.35, 0.5, 0.7, 0.85, 0.9, 0.85, 0.7, 0.5, 0.35, 0.25] },
+    'vitis_coignetiae': { name: 'Vitis coignetiae (Crimson Glory Vine)', months: [0.35, 0.35, 0.45, 0.65, 0.8, 0.9, 1.0, 0.95, 0.8, 0.6, 0.45, 0.35] },
+    'vitis_vinifera_climbing': { name: 'Vitis vinifera (Climbing Grapevine)', months: [0.35, 0.35, 0.45, 0.65, 0.8, 0.9, 1.0, 0.95, 0.8, 0.6, 0.45, 0.35] },
+    'wisteria': { name: 'Wisteria sinensis/floribunda (Wisteria)', months: [0.4, 0.4, 0.55, 0.7, 0.85, 0.95, 1.0, 0.95, 0.85, 0.7, 0.5, 0.4] },
+    'grapevine': { name: 'Vitis vinifera (Grapevine)', months: [0.35, 0.35, 0.45, 0.65, 0.8, 0.9, 1.0, 0.95, 0.8, 0.6, 0.45, 0.35] }
+};
+
+// ============================================
+// Function to get Kc profile for a plant, handling hemisphere
+// ============================================
+function getMonthlyKcProfile(plantId, latitude) {
+    // If latitude is negative, it's Southern Hemisphere - reverse months
+    const isSouthernHemisphere = latitude < 0;
+    
+    if (plantId === 'custom_kc' || !climbingPlantKcProfiles[plantId]) {
+        // Return default profile or will be handled by custom input
+        return null;
+    }
+    
+    const profile = climbingPlantKcProfiles[plantId].months;
+    
+    if (isSouthernHemisphere) {
+        // Reverse array for Southern Hemisphere
+        // Jan (NH) <-> Jul (SH), Feb <-> Jun, etc.
+        return [
+            profile[6],  // Jan (SH) = Jul (NH)
+            profile[7],  // Feb (SH) = Aug (NH)
+            profile[8],  // Mar (SH) = Sep (NH)
+            profile[9],  // Apr (SH) = Oct (NH)
+            profile[10], // May (SH) = Nov (NH)
+            profile[11], // Jun (SH) = Dec (NH)
+            profile[0],  // Jul (SH) = Jan (NH)
+            profile[1],  // Aug (SH) = Feb (NH)
+            profile[2],  // Sep (SH) = Mar (NH)
+            profile[3],  // Oct (SH) = Apr (NH)
+            profile[4],  // Nov (SH) = May (NH)
+            profile[5]   // Dec (SH) = Jun (NH)
+        ];
+    }
+    
+    return profile;
+}
 
 // ============================================
 // Soil Type Factors - Based on FAO-56 and USDA Soil Texture Classification

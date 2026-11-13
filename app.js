@@ -17,10 +17,17 @@ let currentPressure = 2;
 let currentTimePeriod = '30';
 let climateChart = null;
 let monthlyChart = null;
+let vgMonthlyChart = null;
+let vgResultsChart = null;
+let vgChart = null;
+let monthlyResults = null;
 let selectedCountry = null;
 let projects = {};
 let currentProjectId = null;
 let elements = {};
+let currentResultsView = 'horizontal'; // 'horizontal' or 'vertical'
+let verticalGreeningResults = null; // Stores latest VG calculation results
+let manualResultsViewSelection = false; // True if user manually selected view
 
 // ============================================
 // API Request Cache and Rate Limit Tracking
@@ -127,12 +134,13 @@ document.addEventListener('DOMContentLoaded', function() {
     initCountrySelect();
     initPlantPresets();
     initPlantSearch();
-    initThemeToggle();
     initInfoPanel();
     initFormInputs();
     initCharts();
     initProjects();
     initExports();
+    initVerticalGreening();
+    initResultsToggle();
     loadState();
     updateApiStatusDisplay();
     console.log('AquaCalc initialized with API request tracking');
@@ -163,12 +171,40 @@ function initializeElements() {
     elements.bedEditor = document.getElementById('bedEditor');
     elements.projectSummary = document.getElementById('projectSummary');
     elements.addBedBtn = document.getElementById('addBed');
-    elements.themeToggle = document.getElementById('themeToggle');
     elements.infoPanel = document.getElementById('infoPanel');
     elements.infoToggle = document.getElementById('infoToggle');
-    elements.closeInfo = document.getElementById('closeInfo');
+    elements.closeInfo = document.getElementById('closeInfoBtn');
     elements.exportPDF = document.getElementById('exportPDF');
     elements.exportExcel = document.getElementById('exportExcel');
+    
+    // Vertical Greening elements (in Vertical Greening Tab)
+    elements.vgOrientation = document.getElementById('vgOrientation');
+    elements.vgSystem = document.getElementById('vgSystem');
+    elements.vgCustomKf = document.getElementById('vgCustomKf');
+    elements.vgShading = document.getElementById('vgShading');
+    elements.vgAlbedo = document.getElementById('vgAlbedo');
+    elements.vgCustomAlbedo = document.getElementById('vgCustomAlbedo');
+    elements.vgWallArea = document.getElementById('vgWallArea');
+    elements.vgRoofOverhang = document.getElementById('vgRoofOverhang');
+    elements.vgPlant = document.getElementById('vgPlant');
+    elements.vgPlantSearch = document.getElementById('vgPlantSearch');
+    elements.vgCustomKcValue = document.getElementById('vgCustomKcValue');
+    elements.vgCustomKcGroup = document.getElementById('vgCustomKcGroup');
+    
+    // Results view toggle elements
+    elements.viewHorizontal = document.getElementById('viewHorizontal');
+    elements.viewVertical = document.getElementById('viewVertical');
+    elements.resultsTitle = document.getElementById('resultsTitle');
+    elements.resultsDescription = document.getElementById('resultsDescription');
+    elements.vgResultsInResults = document.getElementById('vgResultsInResults');
+    elements.vgResultsGridInResults = document.getElementById('vgResultsGridInResults');
+    elements.calculateVerticalGreening = document.getElementById('calculateVerticalGreening');
+    elements.vgResults = document.getElementById('vgResults');
+    elements.vgAnnualWater = document.getElementById('vgAnnualWater');
+    elements.vgPeakMonth = document.getElementById('vgPeakMonth');
+    elements.vgPeakMonthName = document.getElementById('vgPeakMonthName');
+    elements.vgPeakNeed = document.getElementById('vgPeakNeed');
+    elements.vgResultsTableBody = document.getElementById('vgResultsTableBody');
 }
 
 // Tab management
@@ -182,11 +218,329 @@ function initTabs() {
             document.getElementById(tabId + 'Tab').classList.add('active');
             
             if (tabId === 'site' && currentCity) displayClimateData(currentCity);
-            else if (tabId === 'plant') populatePlantSearch();
-            else if (tabId === 'results') calculateResults();
+            else if (tabId === 'plant') populatePlantSearch(false);
+            else if (tabId === 'verticalGreening') initVerticalGreening();
+            else if (tabId === 'results') {
+                manualResultsViewSelection = false;
+                
+                // If we have Vertical Greening results, prioritize showing them
+                if (verticalGreeningResults && verticalGreeningResults.monthlyData) {
+                    currentResultsView = 'vertical';
+                    displayResults();
+                } else {
+                    calculateResults();
+                }
+            }
             else if (tabId === 'projects') renderProjects();
         });
     });
+}
+
+// Results view toggle
+function initResultsToggle() {
+    if (!elements.viewHorizontal || !elements.viewVertical) return;
+    
+    elements.viewHorizontal.addEventListener('click', () => {
+        elements.viewHorizontal.classList.add('active');
+        elements.viewVertical.classList.remove('active');
+        currentResultsView = 'horizontal';
+        manualResultsViewSelection = true;
+        displayResults();
+    });
+    
+    elements.viewVertical.addEventListener('click', () => {
+        elements.viewVertical.classList.add('active');
+        elements.viewHorizontal.classList.remove('active');
+        currentResultsView = 'vertical';
+        manualResultsViewSelection = true;
+        displayResults();
+    });
+    
+    // Initialize display
+    displayResults();
+}
+
+// Display results based on current view
+function displayResults() {
+    if (!elements.resultsTitle || !elements.resultsDescription) return;
+    
+    // Sync button states with current view
+    if (currentResultsView === 'horizontal') {
+        if (elements.viewHorizontal) elements.viewHorizontal.classList.add('active');
+        if (elements.viewVertical) elements.viewVertical.classList.remove('active');
+        
+        elements.resultsTitle.textContent = 'Horizontal Planting Results';
+        elements.resultsDescription.innerHTML = 'Water demand based on FAO-56 Penman-Monteith method: ET<sub>c</sub> = ET<sub>0</sub> × K<sub>c</sub> × situation factors. Effective rain = rainfall × 0.8 × situation rain factor. Net irrigation = ET<sub>c</sub> - effective rain (minimum 0).';
+        
+        // Show horizontal results, hide vertical
+        const mainResults = document.getElementById('mainResults');
+        const monthlyChart = document.getElementById('monthlyChart');
+        const resultsTable = document.getElementById('resultsTable');
+        
+        if (mainResults) mainResults.style.display = 'grid';
+        if (monthlyChart) monthlyChart.parentElement.style.display = 'block';
+        if (resultsTable) resultsTable.parentElement.style.display = 'block';
+        if (elements.vgResultsInResults) elements.vgResultsInResults.style.display = 'none';
+        
+        // Recreate chart for horizontal planting
+        if (monthlyResults && monthlyResults.length > 0) {
+            createMonthlyChart(monthlyResults);
+        }
+    } else {
+        if (elements.viewHorizontal) elements.viewHorizontal.classList.remove('active');
+        if (elements.viewVertical) elements.viewVertical.classList.add('active');
+        
+        elements.resultsTitle.textContent = 'Vertical Greening Results';
+        elements.resultsDescription.textContent = 'Vertical facade irrigation water demand with orientation factors and system-specific Kf values.';
+        
+        // Hide horizontal results, show vertical
+        const mainResults = document.getElementById('mainResults');
+        const monthlyChart = document.getElementById('monthlyChart');
+        const resultsTable = document.getElementById('resultsTable');
+        
+        if (mainResults) mainResults.style.display = 'none';
+        if (monthlyChart) monthlyChart.parentElement.style.display = 'none';
+        if (resultsTable) resultsTable.parentElement.style.display = 'none';
+        
+        const vgResultsElement = document.getElementById('vgResultsInResults');
+        if (vgResultsElement) {
+            vgResultsElement.style.display = 'block';
+        }
+        
+        // Display vertical greening results only if results are available
+        if (verticalGreeningResults?.monthlyData) {
+            displayVerticalGreeningInResults();
+        }
+    }
+    
+    // Always show the view toggle
+    const viewToggle = document.querySelector('#resultsTab .toggle-group');
+    if (viewToggle) viewToggle.style.display = 'flex';
+}
+
+// Display Vertical Greening results in Results tab only
+function displayVerticalGreeningResults() {
+    // ✅ Only show results in Results Tab, nothing in VG Tab
+}
+
+// Display Vertical Greening results in Vertical Greening Tab
+function displayVerticalGreeningInVGTab() {
+    // ✅ Do NOT display anything in Vertical Greening Tab
+    // All results will be shown only in Results Tab
+}
+
+// Create chart for Vertical Greening in VG Tab
+function createVerticalGreeningVGTabChart() {
+    // ✅ Not used anymore - VG Tab shows no chart
+}
+
+// Display Vertical Greening results in Results tab
+function displayVerticalGreeningInResults() {
+    const vgContainer = document.getElementById('vgResultsInResults');
+    const resultsTab = document.getElementById('resultsTab');
+    const resultsTabBtn = document.querySelector('.tab[data-tab="results"]');
+    
+    // ✅ NUR ANZEIGEN, WENN RESULTS-TAB AKTIV IST
+    if (!vgContainer || !resultsTab || !resultsTab.classList.contains('active')) {
+        return;
+    }
+    
+    // Make container visible
+    vgContainer.style.display = 'block';
+    vgContainer.style.visibility = 'visible';
+    
+    // Check for results
+    if (!verticalGreeningResults?.monthlyData?.length) {
+        const tableBody = document.getElementById('vgResultsTableBodyInResults');
+        if (tableBody) tableBody.innerHTML = '<tr><td colspan="8">No VG data. Please calculate first.</td></tr>';
+        return;
+    }
+    
+    // Update result cards
+    if (document.getElementById('vgAnnualWaterResults')) 
+        document.getElementById('vgAnnualWaterResults').textContent = Math.round(verticalGreeningResults.annualWater).toLocaleString();
+    if (document.getElementById('vgPeakMonthResults')) 
+        document.getElementById('vgPeakMonthResults').textContent = verticalGreeningResults.peakMonth;
+    if (document.getElementById('vgPeakMonthNameResults')) 
+        document.getElementById('vgPeakMonthNameResults').textContent = verticalGreeningResults.peakMonthName || '-';
+    if (document.getElementById('vgPeakNeedResults')) 
+        document.getElementById('vgPeakNeedResults').textContent = Math.round(verticalGreeningResults.peakNeed).toLocaleString();
+    
+    // Update table
+    const tableBody = document.getElementById('vgResultsTableBodyInResults');
+    const wallArea = verticalGreeningResults.wallArea || 1;
+    if (tableBody) {
+        try {
+            tableBody.innerHTML = verticalGreeningResults.monthlyData.map(row => {
+                const et0_vert = parseFloat(row.et0_vert) || 0;
+                const etc_vert = parseFloat(row.etc_vert) || 0;
+                const p_eff = parseFloat(row.p_eff) || 0;
+                const kc = parseFloat(row.kc) || 0;
+                const kf = parseFloat(row.kf) || 0;
+                const net_mm = etc_vert - p_eff;
+                const litres = Math.max(net_mm * wallArea, 0);
+                return `<tr>
+                    <td>${row.month}</td>
+                    <td>${et0_vert.toFixed(1)}</td>
+                    <td>${kc.toFixed(2)}</td>
+                    <td>${kf.toFixed(2)}</td>
+                    <td>${etc_vert.toFixed(1)}</td>
+                    <td>${p_eff.toFixed(1)}</td>
+                    <td>${net_mm.toFixed(1)}</td>
+                    <td>${Math.round(litres).toLocaleString()}</td>
+                </tr>`;
+            }).join('');
+        } catch (e) {
+            tableBody.innerHTML = '<tr><td colspan="8">Error displaying table: ' + e.message + '</td></tr>';
+        }
+    }
+    
+    // Create chart with delay
+    setTimeout(createVerticalGreeningResultsChart, 100);
+}
+
+// Create chart for Vertical Greening results in Results tab
+function createVerticalGreeningResultsChart() {
+    const ctx = document.getElementById('vgMonthlyChartResults');
+    if (!ctx) {
+        console.error('vgMonthlyChartResults canvas not found');
+        return;
+    }
+    
+    // Ensure we have data
+    if (!verticalGreeningResults || !verticalGreeningResults.monthlyData) {
+        console.error('No vertical greening results data for chart');
+        return;
+    }
+    
+    // Make sure canvas is visible
+    ctx.style.display = 'block';
+    ctx.style.visibility = 'visible';
+    ctx.style.opacity = '1';
+    
+    // Ensure chart container is visible and has enough height for title + legend
+    const chartContainer = ctx.closest('.chart-container');
+    if (chartContainer) {
+        chartContainer.style.display = 'block';
+        chartContainer.style.visibility = 'visible';
+        chartContainer.style.opacity = '1';
+        chartContainer.style.height = 'auto';
+        chartContainer.style.minHeight = '450px';
+        chartContainer.style.marginBottom = '40px';
+    }
+    
+    // Destroy existing chart if it exists
+    if (vgResultsChart) {
+        try {
+            vgResultsChart.destroy();
+        } catch (e) {
+            // Silent fail
+        }
+    }
+    vgResultsChart = null;
+    
+    const wallArea = verticalGreeningResults.wallArea || 1;
+    const etc_vert_data = verticalGreeningResults.monthlyData.map(r => parseFloat(r.etc_vert));
+    const p_eff_data = verticalGreeningResults.monthlyData.map(r => parseFloat(r.p_eff));
+    const net_data = verticalGreeningResults.monthlyData.map(r => {
+        const etc_vert = parseFloat(r.etc_vert);
+        const p_eff = parseFloat(r.p_eff);
+        return etc_vert - p_eff;
+    });
+    
+    vgResultsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: verticalGreeningResults.monthlyData.map(r => r.month),
+            datasets: [
+                {
+                    label: 'Net (mm)',
+                    data: net_data,
+                    backgroundColor: 'rgba(231,76,60,0.7)',
+                    borderColor: 'rgba(231,76,60,1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'P<sub>eff</sub> (mm)',
+                    data: p_eff_data,
+                    backgroundColor: 'rgba(52,152,219,0.7)',
+                    borderColor: 'rgba(52,152,219,1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'ET<sub>c,vert</sub> (mm)',
+                    data: etc_vert_data,
+                    type: 'line',
+                    backgroundColor: 'rgba(107,158,122,0.2)',
+                    borderColor: 'rgba(107,158,122,1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Water Depth (mm)'
+                    },
+                    suggestedMax: Math.max(...etc_vert_data, ...p_eff_data, ...net_data) * 1.1
+                }
+            },
+            plugins: {
+                title: {
+                    display: false
+                },
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' mm';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // ✅ Add title and legend before canvas (inside chart container)
+    if (chartContainer && ctx) {
+        // Create title and legend element
+        const titleLegendHTML = `
+        <div style="text-align: center; margin-bottom: 15px;">
+            <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">Vertical Greening Monthly Water Balance</div>
+            <div class="custom-legend" style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; font-size: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 18px; height: 10px; background-color: rgba(231,76,60,0.7); border: 1px solid rgba(231,76,60,1);"></span>
+                    <span>Net (mm)</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 18px; height: 10px; background-color: rgba(52,152,219,0.7); border: 1px solid rgba(52,152,219,1);"></span>
+                    <span>P<sub>eff</sub> (mm)</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 18px; height: 10px; background-color: rgba(107,158,122,1); border: 1px solid rgba(107,158,122,1);"></span>
+                    <span>ET<sub>c,vert</sub> (mm)</span>
+                </div>
+            </div>
+        </div>`;
+        // Insert before the canvas (inside chart container)
+        chartContainer.insertBefore(
+            (() => {
+                const div = document.createElement('div');
+                div.innerHTML = titleLegendHTML;
+                return div;
+            })(),
+            ctx
+        );
+    }
 }
 
 // Country and city selection
@@ -469,7 +823,7 @@ function displayClimateData(cityName) {
     const data = currentClimateData;
     const et0Annual = data.slice(12,24).reduce((a,b)=>a+b,0);
     const rainAnnual = data.slice(0,12).reduce((a,b)=>a+b,0);
-    elements.climateInfo.innerHTML = `<div class="row"><div class="col"><strong>Annual ET0:</strong> ${et0Annual.toFixed(1)} mm</div>
+    elements.climateInfo.innerHTML = `<div class="row"><div class="col"><strong>Annual ET0:</strong> ${et0Annual.toFixed(1)} mm</div>
         <div class="col"><strong>Annual Rainfall:</strong> ${rainAnnual.toFixed(1)} mm</div></div>`;
     updateClimateTable(cityName, data);
     createClimateChart(cityName, data);
@@ -487,7 +841,11 @@ function updateClimateTable(cityName, data) {
 }
 
 function createClimateChart(cityName, data) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const et0Data = data.slice(12,24); const rainData = data.slice(0,12);
+    const maxRain = Math.max(...rainData);
+    const maxEt0 = Math.max(...et0Data);
+    const maxValue = Math.max(maxRain, maxEt0);
     const ctx = document.getElementById('climateChart'); if (!ctx) return;
     if (climateChart) climateChart.destroy();
     climateChart = new Chart(ctx, {
@@ -496,21 +854,30 @@ function createClimateChart(cityName, data) {
             labels: months,
             datasets: [
                 {label: 'Rainfall (mm)', data: rainData, backgroundColor: 'rgba(52,152,219,0.7)', borderColor: 'rgba(52,152,219,1)', yAxisID: 'y'},
-                {label: 'ET0 (mm)', data: et0Data, type: 'line', backgroundColor: 'rgba(231,76,60,0.2)', 
+                {label: 'ET0 (mm)', data: et0Data, type: 'line', backgroundColor: 'rgba(231,76,60,0.2)', 
                  borderColor: 'rgba(231,76,60,1)', borderWidth: 2, fill: false, tension: 0.3, yAxisID: 'y1'}
             ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
             scales: {
-                y: {type: 'linear', display: true, position: 'left', title: {display: true, text: 'Rainfall (mm)'}, beginAtZero: true},
-                y1: {type: 'linear', display: true, position: 'right', title: {display: true, text: 'ET0 (mm)'}, 
-                      grid: {drawOnChartArea: false}, beginAtZero: true}
+                y: {type: 'linear', display: true, position: 'left', title: {display: true, text: 'Rainfall (mm)'}, beginAtZero: true, suggestedMax: maxValue * 1.1},
+                y1: {type: 'linear', display: true, position: 'right', title: {display: true, text: 'ET0 (mm)'}, 
+                      grid: {drawOnChartArea: false}, beginAtZero: true, suggestedMax: maxValue * 1.1}
             },
             plugins: {
                 title: {display: true, text: `Climate Data - ${cityName}`, font: {size: 16}},
                 legend: {position: 'top'},
-                tooltip: {callbacks: {label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} mm`}}
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            let label = ctx.dataset.label;
+                            if (label.includes('ET0')) label = label.replace('ET0', 'Reference Evapotranspiration (ET₀)');
+                            if (label.includes('Rainfall')) label = label.replace('Rainfall', 'Precipitation');
+                            return `${label}: ${ctx.parsed.y} mm`;
+                        }
+                    }
+                }
             }
         }
     });
@@ -563,8 +930,10 @@ function selectPlantPreset(presetKey) {
 }
 
 
-function populatePlantSearch() {
-    if (!elements.plantSelect) return; if (elements.plantSelect.options.length > 1) return;
+function populatePlantSearch(includeClimbers = true) {
+    if (!elements.plantSelect) return;
+    // Only repopulate if includeClimbers is false (for horizontal planting) or if not already populated
+    if (includeClimbers && elements.plantSelect.options.length > 1) return;
     while (elements.plantSelect.options.length > 1) elements.plantSelect.remove(1);
     
     // Add preset options with tooltips
@@ -593,8 +962,11 @@ function populatePlantSearch() {
     const sep = document.createElement('option'); sep.disabled = true; sep.textContent = '─────────────────────';
     elements.plantSelect.appendChild(sep);
     
-    // Add plant database options with tooltips
+    // Add plant database options with tooltips - filter out climbers if needed
     plantDatabase.forEach(p => {
+        // Skip climbers for horizontal planting
+        if (!includeClimbers && p.category === 'Climbers') return;
+        
         const opt = document.createElement('option');
         opt.value = p.kc || p.id; 
         const displayName = p.name || p.kc || p.id;
@@ -612,6 +984,9 @@ function populatePlantSearch() {
     
     // Add remaining Kc profiles
     Object.keys(kcProfiles).forEach(k => {
+        // Skip climbing plant profiles for horizontal planting
+        if (!includeClimbers && (k.toLowerCase().includes('kletter') || k.toLowerCase().includes('climbing') || k.toLowerCase().includes('climber'))) return;
+        
         if (!plantDatabase.some(p => p.kc === k || p.id === k)) {
             const opt = document.createElement('option');
             opt.value = k; 
@@ -634,11 +1009,9 @@ function populatePlantSearch() {
 }
 
 function initPlantSearch() {
-    if (!elements.plantSearch && !elements.plantSelect) return;
-    populatePlantSearch();
-    if (elements.plantSearch) {
-        elements.plantSearch.addEventListener('input', () => filterPlantSearch(elements.plantSearch.value.toLowerCase()));
-    }
+    if (!elements.plantSelect) return;
+    // For horizontal planting, exclude climbers
+    populatePlantSearch(false);
     if (elements.plantSelect) {
         elements.plantSelect.addEventListener('change', () => {
             const val = elements.plantSelect.value;
@@ -674,6 +1047,14 @@ function filterPlantSearch(term) {
     if (!elements.plantSelect) return;
     for (let i = 1; i < elements.plantSelect.options.length; i++) {
         const opt = elements.plantSelect.options[i];
+        opt.style.display = opt.textContent.toLowerCase().includes(term) ? '' : 'none';
+    }
+}
+
+function filterVgPlantSearch(term) {
+    if (!elements.vgPlant) return;
+    for (let i = 1; i < elements.vgPlant.options.length; i++) {
+        const opt = elements.vgPlant.options[i];
         opt.style.display = opt.textContent.toLowerCase().includes(term) ? '' : 'none';
     }
 }
@@ -838,7 +1219,7 @@ function calculateResults() {
     const sanityWarnings = performSanityChecks(et0Data, rainData, kcValues);
     displaySanityWarnings(sanityWarnings);
     
-    const monthlyResults = []; let annualWater = 0; let peakMonth = ''; let peakNeed = 0; let peakMonthIndex = 0;
+    monthlyResults = []; let annualWater = 0; let peakMonth = ''; let peakNeed = 0; let peakMonthIndex = 0;
     
     for (let i=0; i<12; i++) {
         const etc = et0Data[i] * kcValues[i] * situation.demand;
@@ -857,6 +1238,7 @@ function calculateResults() {
     if (elements.peakNeed) elements.peakNeed.textContent = Math.round(peakNeed).toLocaleString();
     updateResultsTable(monthlyResults); createMonthlyChart(monthlyResults);
     calculateWateringPlan(monthlyResults, peakMonthIndex);
+    displayResults();
 }
 
 function updateResultsTable(results) {
@@ -882,34 +1264,54 @@ function createMonthlyChart(monthlyResults) {
             datasets: [
                 {label: 'Net Irrigation (mm)', data: netData, backgroundColor: 'rgba(231,76,60,0.7)', borderColor: 'rgba(231,76,60,1)'},
                 {label: 'Rainfall (mm)', data: rainData, backgroundColor: 'rgba(52,152,219,0.7)', borderColor: 'rgba(52,152,219,1)'},
-                {label: 'ETc (mm)', data: etcData, type: 'line', backgroundColor: 'rgba(46,204,113,0.2)', 
-                 borderColor: 'rgba(46,204,113,1)', borderWidth: 2, fill: false, tension: 0.3}
+                {label: 'ETc (mm)', data: etcData, type: 'line', backgroundColor: 'rgba(107,158,122,0.2)', 
+                 borderColor: 'rgba(107,158,122,1)', borderWidth: 2, fill: false, tension: 0.3}
             ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            scales: {y: {beginAtZero: true, title: {display: true, text: 'Water Depth (mm)'}}},
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {display: true, text: 'Water Depth (mm)'},
+                    suggestedMax: Math.max(...netData, ...rainData, ...etcData) * 1.1
+                }
+            },
             plugins: {
                 title: {display: true, text: 'Monthly Water Balance', font: {size: 16}},
-                legend: {position: 'top'}
+                legend: {position: 'top'},
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            let label = ctx.dataset.label;
+                            const mappings = {
+                                'Net Irrigation': 'Net Irrigation (ETc - Effective Rain)',
+                                'Rainfall': 'Precipitation',
+                                'ETc': 'Crop Evapotranspiration (ET₀ × Kc × Situation Factor)'
+                            };
+                            return `${mappings[label] || label}: ${ctx.parsed.y} mm`;
+                        }
+                    }
+                }
             }
         }
     });
 }
 
-function calculateWateringPlan(monthlyResults, peakMonthIndex) {
+function calculateWateringPlan(monthlyResults, peakMonthIndex, area = currentArea, plant = currentPlant) {
     if (!elements.seasonCards || !elements.irrigationType || !elements.pressure) return;
     const type = elements.irrigationType.value; 
     const pressure = parseInt(elements.pressure.value);
     const config = irrigationTypes[type]; 
     if (!config) return;
     
-    const peakLitres = parseFloat(monthlyResults[peakMonthIndex].litres);
+    // Handle both horizontal (litres) and vertical (totalLitres) result formats
+    const peakLitres = parseFloat(monthlyResults[peakMonthIndex].litres || monthlyResults[peakMonthIndex].totalLitres);
     const weeklyLitres = peakLitres / 4.345;
     const flowRate = config.flowRate[pressure] || config.flowRate['4'];
     
     // Calculate emitters/units needed based on area and coverage factor
-    const emittersNeeded = currentArea * (config.coverageFactor || 1);
+    const emittersNeeded = area * (config.coverageFactor || 1);
     const unitsNeeded = Math.ceil(emittersNeeded);
     
     // Convert ALL flow rates to L/min for consistent calculation
@@ -918,7 +1320,7 @@ function calculateWateringPlan(monthlyResults, peakMonthIndex) {
     const totalFlowLmin = flowRateLmin * unitsNeeded;
     
     // Get plant type
-    const plantType = getPlantType(currentPlant);
+    const plantType = getPlantType(plant);
     
     const seasons = [
         {name:'Spring', months:[2,3,4], key:'spring'},
@@ -937,7 +1339,7 @@ function calculateWateringPlan(monthlyResults, peakMonthIndex) {
         const days = config.daysPerWeek;
         
         // Calculate season-specific litres using plant-specific factors
-        const seasonFactor = getSeasonalFactor(currentPlant, season.key);
+        const seasonFactor = getSeasonalFactor(plant, season.key);
         const seasonWeeklyLitres = weeklyLitres * seasonFactor;
         
         const seasonLitresPerSession = seasonWeeklyLitres / days;
@@ -976,7 +1378,7 @@ function calculateWateringPlan(monthlyResults, peakMonthIndex) {
             <p><strong>Litres per session:</strong> ${litresPerSessionDisplay.toLocaleString()}</p>
             <p><strong>Weekly water:</strong> ${Math.round(seasonWeeklyLitres).toLocaleString()} litres</p>
             <p><strong>Units needed:</strong> ${unitsNeeded} ${unitType} @ ${flowRateDisplay} each</p>
-            <p><strong>Total flow:</strong> ${totalFlowDisplay} for ${currentArea} m²</p>
+            <p><strong>Total flow:</strong> ${totalFlowDisplay} for ${area} m²</p>
             ${isPeak ? '<p><em>(Peak season - highest water demand)</em></p>' : ''}
             ${warningHtml}`;
         elements.seasonCards.appendChild(card);
@@ -984,33 +1386,193 @@ function calculateWateringPlan(monthlyResults, peakMonthIndex) {
 }
 
 // Theme toggle
-function initThemeToggle() {
-    if (!elements.themeToggle) return;
-    const html = document.documentElement;
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    if (savedTheme === 'dark') { html.setAttribute('data-theme', 'dark'); elements.themeToggle.textContent = 'Toggle Light Mode'; }
-    elements.themeToggle.addEventListener('click', () => {
-        const current = html.getAttribute('data-theme'); const next = current === 'dark' ? 'light' : 'dark';
-        html.setAttribute('data-theme', next); localStorage.setItem('theme', next);
-        elements.themeToggle.textContent = next === 'dark' ? 'Toggle Light Mode' : 'Toggle Dark Mode';
-        updateChartsTheme();
-    });
-}
-
-function updateChartsTheme() {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const textColor = isDark ? '#e0e0e0' : '#2c3e50';
-    Chart.defaults.color = textColor; Chart.defaults.plugins.legend.labels.color = textColor;
-    if (climateChart) createClimateChart(currentCity, currentClimateData);
-    if (monthlyChart) calculateResults();
-}
-
 // Info panel
 function initInfoPanel() {
     if (!elements.infoToggle || !elements.infoPanel || !elements.closeInfo) return;
     elements.infoToggle.addEventListener('click', () => elements.infoPanel.classList.add('active'));
     elements.closeInfo.addEventListener('click', () => elements.infoPanel.classList.remove('active'));
     elements.infoPanel.addEventListener('click', e => { if (e.target === elements.infoPanel) elements.infoPanel.classList.remove('active'); });
+}
+
+// Vertical Greening
+function initVerticalGreening() {
+    // Vertical Greening is now in its own tab, no toggle needed
+    
+    // Initialize vertical greening form inputs
+    if (elements.vgSystem) {
+        elements.vgSystem.addEventListener('change', updateCustomKfVisibility);
+        updateCustomKfVisibility();
+    }
+    
+    if (elements.vgAlbedo) {
+        elements.vgAlbedo.addEventListener('change', updateCustomAlbedoVisibility);
+        updateCustomAlbedoVisibility();
+    }
+    
+    // Plant search functionality
+    if (elements.vgPlant) {
+        initVerticalGreeningPlantSearch();
+    }
+    
+    // Custom Kc handling
+    if (elements.vgPlant && elements.vgCustomKcGroup) {
+        elements.vgPlant.addEventListener('change', function() {
+            const selectedValue = elements.vgPlant.value;
+            if (selectedValue === 'custom_kc') {
+                elements.vgCustomKcGroup.style.display = 'block';
+            } else {
+                elements.vgCustomKcGroup.style.display = 'none';
+            }
+            // Auto-calculate on plant change
+            debounceCalculateVerticalGreening();
+        });
+    }
+    
+    // Auto-calculate on input changes
+    initVerticalGreeningAutoCalc();
+    
+    // Listen for wall area changes for validation
+    if (elements.vgWallArea) {
+        elements.vgWallArea.addEventListener('change', validateVerticalGreeningInputs);
+        elements.vgWallArea.addEventListener('input', validateVerticalGreeningInputs);
+    }
+    
+    populateVerticalGreeningDefaults();
+}
+
+// Auto-calculate for Vertical Greening
+let vgCalcTimeout = null;
+function debounceCalculateVerticalGreening() {
+    clearTimeout(vgCalcTimeout);
+    
+    // Only calculate if we have required data
+    if (currentCity && currentClimateData) {
+        vgCalcTimeout = setTimeout(calculateVerticalGreeningResults, 500);
+    } else {
+        // Show warning if city not selected
+        const warningEl = document.getElementById('vgCityWarning');
+        if (warningEl) {
+            warningEl.style.display = (!currentCity || !currentClimateData) ? 'block' : 'none';
+        }
+    }
+}
+
+function initVerticalGreeningAutoCalc() {
+    const inputs = [
+        elements.vgOrientation, elements.vgSystem, elements.vgCustomKf,
+        elements.vgShading, elements.vgAlbedo, elements.vgCustomAlbedo,
+        elements.vgWallArea, elements.vgRoofOverhang, elements.vgPlant,
+        elements.vgPlantSearch, elements.vgCustomKcValue
+    ].filter(Boolean);
+    
+    inputs.forEach(input => {
+        input.addEventListener('input', debounceCalculateVerticalGreening);
+        input.addEventListener('change', debounceCalculateVerticalGreening);
+    });
+}
+
+function initVerticalGreeningPlantSearch() {
+    if (!elements.vgPlant) return;
+    
+    const plantSelect = elements.vgPlant;
+    
+    // Populate the select with all climbing plants from data.js
+    // Structure: { id: { name: "Botanical (Common)", months: [...] } }
+    plantSelect.innerHTML = '<option value="">Select a plant from the dropdown...</option>';
+    
+    Object.entries(climbingPlantKcProfiles || {}).forEach(([id, data]) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = data.name;
+        plantSelect.appendChild(option);
+    });
+    
+    // Add Custom Kc option
+    const customOption = document.createElement('option');
+    customOption.value = 'custom_kc';
+    customOption.textContent = 'Custom Kc Profile';
+    plantSelect.appendChild(customOption);
+    
+    // Select plant from dropdown
+    plantSelect.addEventListener('change', function() {
+        if (plantSelect.value === 'custom_kc') {
+            elements.vgCustomKcGroup.style.display = 'block';
+        } else {
+            elements.vgCustomKcGroup.style.display = 'none';
+        }
+    });
+}
+
+function populateVerticalGreeningDefaults() {
+    // Set default values if not already set
+    if (elements.vgOrientation && !elements.vgOrientation.value) {
+        elements.vgOrientation.value = 'S';
+    }
+    if (elements.vgSystem && !elements.vgSystem.value) {
+        elements.vgSystem.value = 'trough';
+    }
+    if (elements.vgShading && !elements.vgShading.value) {
+        elements.vgShading.value = 'none';
+    }
+    if (elements.vgAlbedo && !elements.vgAlbedo.value) {
+        elements.vgAlbedo.value = '0.22';
+    }
+    if (elements.vgWallArea && !elements.vgWallArea.value) {
+        elements.vgWallArea.value = 50;
+    }
+    if (elements.vgRoofOverhang && !elements.vgRoofOverhang.value) {
+        elements.vgRoofOverhang.value = 'no';
+    }
+}
+
+function updateCustomKfVisibility() {
+    if (!elements.vgSystem || !elements.vgCustomKf) return;
+    const showCustom = elements.vgSystem.value === 'custom';
+    elements.vgCustomKf.style.display = showCustom ? 'block' : 'none';
+}
+
+function updateCustomAlbedoVisibility() {
+    if (!elements.vgAlbedo || !elements.vgCustomAlbedo) return;
+    const showCustom = elements.vgAlbedo.value === 'custom';
+    elements.vgCustomAlbedo.style.display = showCustom ? 'block' : 'none';
+}
+
+function validateVerticalGreeningInputs() {
+    if (!elements.vgWallArea) return;
+    
+    const area = parseFloat(elements.vgWallArea.value) || 0;
+    const warningContainer = document.getElementById('vgInputWarning') || createWarningContainer();
+    
+    if (area > 0 && area < 1) {
+        warningContainer.innerHTML = '⚠️ Wall area should be at least 1 m².';
+        warningContainer.style.display = 'block';
+    } else if (area > 10000) {
+        warningContainer.innerHTML = '⚠️ Very large wall area. Please verify input.';
+        warningContainer.style.display = 'block';
+    } else {
+        warningContainer.style.display = 'none';
+    }
+}
+
+function createWarningContainer() {
+    const container = document.createElement('div');
+    container.id = 'vgInputWarning';
+    container.style.cssText = 'color: var(--accent-color); margin-top: 10px; padding: 10px; background: rgba(231, 76, 60, 0.1); border-radius: 5px; border-left: 4px solid var(--accent-color); display: none;';
+    
+    const vgTab = document.getElementById('verticalGreeningTab');
+    if (vgTab && elements.vgWallArea) {
+        // Insert after wall area field
+        const wallAreaGroup = elements.vgWallArea.closest('.form-group');
+        if (wallAreaGroup) {
+            wallAreaGroup.parentNode.insertBefore(container, wallAreaGroup.nextSibling);
+        } else {
+            const formSection = vgTab.querySelector('.form-section');
+            if (formSection) {
+                formSection.insertBefore(container, formSection.firstChild);
+            }
+        }
+    }
+    return container;
 }
 
 // Charts initialization
@@ -1120,10 +1682,83 @@ function initExports() {
 }
 
 function exportToPDF() {
+    // Check if Vertical Greening results are available
+    if (verticalGreeningResults && verticalGreeningResults.monthlyData) {
+        exportVerticalGreeningToPDF();
+        return;
+    }
     if (!currentCity || !currentPlant || !currentClimateData) { alert('Please select a city and plant first.'); return; }
     const printWindow = window.open('', '_blank');
     printWindow.document.write(generatePDFContent()); printWindow.document.close();
     setTimeout(() => printWindow.print(), 250);
+}
+
+function exportVerticalGreeningToPDF() {
+    if (!verticalGreeningResults || !verticalGreeningResults.monthlyData) { 
+        alert('Please calculate Vertical Greening results first.'); 
+        return; 
+    }
+    const plantName = verticalGreeningResults.monthlyData.length > 0 ? verticalGreeningResults.monthlyData[0].plantName || 'Unknown' : 'Unknown';
+    const now = new Date(); const dateStr = now.toLocaleDateString();
+    const wallArea = verticalGreeningResults.wallArea || 0;
+    
+    printWindow.document.write(generateVerticalGreeningPDFContent()); 
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 250);
+}
+
+function generateVerticalGreeningPDFContent() {
+    if (!verticalGreeningResults || !verticalGreeningResults.monthlyData) return '<p>No Vertical Greening data.</p>';
+    const plantName = 'Vertical Greening';
+    const now = new Date(); const dateStr = now.toLocaleDateString();
+    const wallArea = verticalGreeningResults.wallArea || 0;
+    
+    const orientation = document.getElementById('vgOrientation') ? document.getElementById('vgOrientation').value : 'Unknown';
+    const system = document.getElementById('vgSystem') ? document.getElementById('vgSystem').value : 'Unknown';
+    const plant = document.getElementById('vgPlant') ? document.getElementById('vgPlant').value : 'Unknown';
+    const plantDisplayName = plantNamesEN[plant] || plant;
+    
+    return `<!DOCTYPE html><html><head><title>AquaCalc Vertical Greening Report - ${currentCity} | ${plantDisplayName}</title>
+        <style>body{font-family:Arial,sans-serif;margin:20px;color:#333}h1{color:#2c3e50;font-size:24px}h2{color:#3498db;font-size:20px}h3{color:#2c3e50;font-size:18px}
+        .header{margin-bottom:30px;border-bottom:2px solid #2c3e50;padding-bottom:20px}.section{margin-bottom:25px}
+        .results-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin:20px 0}.result-card{border:1px solid #ddd;padding:15px;border-radius:5px;background:#f9f9f9}
+        .result-value{font-size:24px;font-weight:bold;color:#e74c3c}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#2c3e50;color:white}tr:nth-child(even){background:#f2f2f2}
+        .footer{margin-top:40px;font-size:12px;color:#7f8c8d}.metadata{font-size:12px;color:#7f8c8d;margin-top:5px}</style></head>
+        <body><div class="header"><h1>AquaCalc - Vertical Greening</h1><p><strong>FAO-56 Based Irrigation Water Calculator</strong></p>
+        <div class="metadata"><p>Generated: ${dateStr}</p><p>City: ${currentCity}</p><p>Plant: ${plantDisplayName}</p>
+        <p>Wall Area: ${wallArea} m²</p><p>Facade Orientation: ${getOrientationName(orientation)}</p>
+        <p>Greening System: ${getSystemName(system)}</p></div></div>
+        <div class="section"><h2>Vertical Greening Monthly Water Balance</h2>${generateVerticalGreeningResultsTableHTML()}</div>
+        <div class="section"><h2>Summary</h2><div class="results-grid">
+        <div class="result-card"><h3>Annual Water Need</h3><div class="result-value">${verticalGreeningResults.annualWater ? Math.round(verticalGreeningResults.annualWater).toLocaleString() : '-'}</div><p>litres</p></div>
+        <div class="result-card"><h3>Peak Month</h3><div class="result-value">${verticalGreeningResults.peakMonth || '-'}</div><p>${verticalGreeningResults.peakMonthName || '-'}</p></div>
+        <div class="result-card"><h3>Peak Month Need</h3><div class="result-value">${verticalGreeningResults.peakNeed ? Math.round(verticalGreeningResults.peakNeed).toLocaleString() : '-'}</div><p>litres</p></div></div></div>
+        <div class="footer"><p>&#169; ${new Date().getFullYear()} | AquaCalc - FAO-56 Irrigation Water Calculator</p>
+        <p>Data Source: Open-Meteo API (ERA5 reanalysis)</p></div></body></html>`;
+}
+
+function getOrientationName(code) {
+    const names = {'N':'North', 'NE':'Northeast', 'E':'East', 'SE':'Southeast', 'S':'South', 'SW':'Southwest', 'W':'West', 'NW':'Northwest'};
+    return names[code] || code;
+}
+
+function getSystemName(code) {
+    const names = {'soil':'Soil-based', 'trough':'Wall-mounted trough', 'living_wall':'Living Wall Panels', 'custom':'Custom'};
+    return names[code] || code;
+}
+
+function generateVerticalGreeningResultsTableHTML() {
+    if (!verticalGreeningResults || !verticalGreeningResults.monthlyData) return '<p>No results.</p>';
+    const wallArea = verticalGreeningResults.wallArea || 0;
+    let html = '<table><thead><tr><th>Month</th><th>ET0_vert (mm)</th><th>Kc</th><th>Kf</th><th>ETc_vert (mm)</th><th>P_eff (mm)</th><th>Net (mm)</th><th>Litres</th></tr></thead><tbody>';
+    verticalGreeningResults.monthlyData.forEach(row => {
+        const etc_vert = parseFloat(row.etc_vert);
+        const p_eff = parseFloat(row.p_eff);
+        const net_mm = etc_vert - p_eff;
+        const litres = Math.max(net_mm * wallArea, 0);
+        html += `<tr><td>${row.month}</td><td>${row.et0_vert}</td><td>${row.kc}</td><td>${row.kf}</td><td>${row.etc_vert}</td><td>${row.p_eff}</td><td>${net_mm.toFixed(1)}</td><td>${Math.round(litres).toLocaleString()}</td></tr>`;
+    });
+    return html + '</tbody></table>';
 }
 
 function generatePDFContent() {
@@ -1152,14 +1787,14 @@ function generatePDFContent() {
 function generateClimateTableHTML() {
     if (!currentClimateData) return '<p>No climate data.</p>';
     const et0 = currentClimateData.slice(12,24); const rain = currentClimateData.slice(0,12);
-    let html = '<table><thead><tr><th>Month</th><th>ET0 (mm)</th><th>Rainfall (mm)</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Month</th><th>ET0 (mm)</th><th>Rainfall (mm)</th></tr></thead><tbody>';
     for (let i=0; i<12; i++) html += `<tr><td>${months[i]}</td><td>${et0[i]}</td><td>${rain[i]}</td></tr>`;
     return html + '</tbody></table>';
 }
 
 function generateResultsTableHTML() {
     if (!elements.resultsTableBody) return '<p>No results.</p>';
-    let html = '<table><thead><tr><th>Month</th><th>ET0 (mm)</th><th>Kc</th><th>ETc (mm)</th><th>Rain (mm)</th><th>Effective Rain (mm)</th><th>Net (mm)</th><th>Litres</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Month</th><th>ET0 (mm)</th><th>Kc</th><th>ETc (mm)</th><th>Rain (mm)</th><th>Effective Rain (mm)</th><th>Net (mm)</th><th>Litres</th></tr></thead><tbody>';
     elements.resultsTableBody.querySelectorAll('tr').forEach(row => {
         const cells = row.querySelectorAll('td');
         if (cells.length === 8) { html += '<tr>'; cells.forEach(c => html += `<td>${c.textContent}</td>`); html += '</tr>'; }
@@ -1177,6 +1812,11 @@ function generateWateringPlanHTML() {
 }
 
 function exportToExcel() {
+    // Check if Vertical Greening results are available
+    if (verticalGreeningResults && verticalGreeningResults.monthlyData) {
+        exportVerticalGreeningToExcel();
+        return;
+    }
     if (!currentCity || !currentPlant || !currentClimateData) { alert('Please select city and plant first.'); return; }
     const csv = generateCSVContent();
     const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
@@ -1185,14 +1825,56 @@ function exportToExcel() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
+function exportVerticalGreeningToExcel() {
+    if (!verticalGreeningResults || !verticalGreeningResults.monthlyData) { 
+        alert('Please calculate Vertical Greening results first.'); 
+        return; 
+    }
+    const csv = generateVerticalGreeningCSVContent();
+    const plant = document.getElementById('vgPlant') ? document.getElementById('vgPlant').value : 'Unknown';
+    const plantName = plantNamesEN[plant] || plant;
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a'); link.href = url; link.download = `AquaCalc_VerticalGreening_${currentCity}_${plantName}_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+function generateVerticalGreeningCSVContent() {
+    if (!verticalGreeningResults || !verticalGreeningResults.monthlyData) return '';
+    const plant = document.getElementById('vgPlant') ? document.getElementById('vgPlant').value : 'Unknown';
+    const plantName = plantNamesEN[plant] || plant;
+    const orientation = document.getElementById('vgOrientation') ? document.getElementById('vgOrientation').value : 'Unknown';
+    const system = document.getElementById('vgSystem') ? document.getElementById('vgSystem').value : 'Unknown';
+    const wallArea = verticalGreeningResults.wallArea || 0;
+    const date = new Date().toLocaleDateString();
+    
+    let csv = 'AquaCalc Vertical Greening Export\nGenerated: ' + date + '\nCity: ' + currentCity + '\nPlant: ' + plantName + '\nWall Area: ' + wallArea + ' m²\nFacade Orientation: ' + getOrientationName(orientation) + '\nGreening System: ' + getSystemName(system) + '\n\n';
+    csv += 'Climate Data\nMonth,ET0 (mm),Rainfall (mm)\n';
+    const et0 = currentClimateData.slice(12,24); const rain = currentClimateData.slice(0,12);
+    for (let i=0; i<12; i++) csv += months[i] + ',' + et0[i] + ',' + rain[i] + '\n';
+    csv += '\nVertical Greening Monthly Water Balance\nMonth,ET0_vert (mm),Kc,Kf,ETc_vert (mm),P_eff (mm),Net (mm),Litres\n';
+    const wallAreaVal = verticalGreeningResults.wallArea || 0;
+    verticalGreeningResults.monthlyData.forEach(row => {
+        const etc_vert = parseFloat(row.etc_vert);
+        const p_eff = parseFloat(row.p_eff);
+        const net_mm = etc_vert - p_eff;
+        const litres = Math.max(net_mm * wallAreaVal, 0);
+        csv += row.month + ',' + row.et0_vert + ',' + row.kc + ',' + row.kf + ',' + row.etc_vert + ',' + row.p_eff + ',' + net_mm.toFixed(1) + ',' + Math.round(litres) + '\n';
+    });
+    csv += '\nSummary\nAnnual Water Need (litres),' + Math.round(verticalGreeningResults.annualWater) + '\n';
+    csv += 'Peak Month,' + (verticalGreeningResults.peakMonth || '-') + '\n';
+    csv += 'Peak Month Need (litres),' + Math.round(verticalGreeningResults.peakNeed) + '\n';
+    return csv;
+}
+
 function generateCSVContent() {
     const plantName = plantNamesEN[currentPlant] || currentPlant;
     const date = new Date().toLocaleDateString();
     let csv = 'AquaCalc Export\nGenerated: ' + date + '\nCity: ' + currentCity + '\nPlant: ' + plantName + '\nArea: ' + currentArea + ' m\u001b2\nSituation: ' + currentSituation + '\n\n';
-    csv += 'Climate Data\nMonth,ET₀ (mm),Rainfall (mm)\n';
+    csv += 'Climate Data\nMonth,ET0 (mm),Rainfall (mm)\n';
     const et0 = currentClimateData.slice(12,24); const rain = currentClimateData.slice(0,12);
     for (let i=0; i<12; i++) csv += months[i] + ',' + et0[i] + ',' + rain[i] + '\n';
-    csv += '\nMonthly Water Balance\nMonth,ET₀ (mm),Kc,ETc (mm),Rain (mm),Effective Rain (mm),Net (mm),Litres\n';
+    csv += '\nMonthly Water Balance\nMonth,ET0 (mm),Kc,ETc (mm),Rain (mm),Effective Rain (mm),Net (mm),Litres\n';
     elements.resultsTableBody.querySelectorAll('tr').forEach(row => {
         const cells = row.querySelectorAll('td');
         if (cells.length === 8) csv += Array.from(cells).map(c => c.textContent).join(',') + '\n';
@@ -1216,9 +1898,6 @@ function saveState() {
 function loadState() {
     const saved = localStorage.getItem('aquacalc-state'); if (!saved) return;
     try { const state = JSON.parse(saved);
-        if (state.theme) { document.documentElement.setAttribute('data-theme', state.theme);
-            if (elements.themeToggle) elements.themeToggle.textContent = state.theme==='dark'?'Toggle Light Mode':'Toggle Dark Mode';
-            setTimeout(updateChartsTheme, 100); }
         if (state.country && elements.countrySelect) { elements.countrySelect.value = state.country; selectedCountry = state.country; populateCities(state.country); }
         if (state.city) { setTimeout(async () => {
             if (elements.citySelect) { elements.citySelect.value = state.city; currentCity = state.city;
@@ -1246,6 +1925,281 @@ function loadState() {
         if (state.irrigationType && elements.irrigationType) { currentIrrigationType = state.irrigationType; elements.irrigationType.value = state.irrigationType; }
         if (state.pressure && elements.pressure) { currentPressure = state.pressure; elements.pressure.value = state.pressure; }
     } catch (e) { console.error('Error loading state:', e); }
+}
+
+// ============================================
+// Vertical Greening Calculation Functions
+// ============================================
+
+// Kf values for different systems
+const vgSystemKfValues = {
+    'soil': 0.9,
+    'trough': 1.0,
+    'living_wall': 1.225, // Average of 1.15-1.3
+    'custom': 1.0
+};
+
+// Bewässerungswirkungsgrad η_Bew
+const vgEfficiencyValues = {
+    'soil': 0.925, // Average of 0.90-0.95 for drip irrigation
+    'trough': 0.925,
+    'living_wall': 0.80, // Average of 0.75-0.85 for living wall systems
+    'custom': 0.85
+};
+
+// Beschattungsfaktoren
+const vgShadingFactors = {
+    'none': 1.0,
+    'light': 0.75,
+    'medium': 0.5,
+    'heavy': 0.25
+};
+
+// Standard-Albedo-Werte
+const vgAlbedoValues = {
+    '0.15': 0.15, // Asphalt
+    '0.30': 0.30, // Beton/Pflaster
+    '0.22': 0.22, // Rasen/Vegetation average
+    'custom': 0.2
+};
+
+// Calculate rain factor based on wall height
+// H ≤ 2 m: R_f = 0.5
+// 2 m < H ≤ 5 m: R_f = 0.25
+// H > 5 m: R_f = 0.1
+// Calculate orientation factors F_or for each month
+// Based on solar geometry: direct component from sun angle, diffuse component, and ground reflection
+// Uses pre-calculated monthly orientation factors based on solar geometry
+// for typical mid-latitude locations 40-55 deg N. Factors account for:
+// - Direct component: ratio of cosine-theta to sine-gamma for incidence angle and solar altitude
+//   averaged over daylight hours, representative of month center
+// - Diffuse component: isotropic sky model with 0.5 view factor for vertical surfaces
+//   diffuse portion approx 40-60 percent of global radiation
+// - Ground reflection: albedo times 0.5 times 0.5 for lower facade half and view factor
+//   calculated separately and added to orientation factor
+function calculateOrientationFactors(orientation, latitude, month) {
+    // Pre-calculated monthly orientation factors for direct+diffuse components
+    // Based on solar geometry calculations for mid-latitudes (40-55°N)
+    // Values represent the ratio of vertical to horizontal global radiation
+    // Higher values in spring/autumn for S-facing (peak May/Sept), summer for E/W-facing facades (peak July/Aug)
+    // S-facing: Mai>Juli due to high sun angle in summer causing oblique incidence on vertical surface
+    // For S facade at 50°N: Solar altitude in July ~60° -> incidence angle ~30° -> cos(30°)/sin(60°) ≈ 0.866
+    // For S facade at 50°N: Solar altitude in May ~45° -> incidence angle ~45° -> cos(45°)/sin(45°) = 1.0
+    // E/W facade: Low morning/evening sun in summer -> more direct radiation on vertical surface
+    const monthlyOrientationFactors = {
+        'N': [0.20, 0.22, 0.25, 0.28, 0.30, 0.32, 0.30, 0.28, 0.25, 0.22, 0.20, 0.20],
+        'NE': [0.35, 0.40, 0.50, 0.60, 0.70, 0.80, 0.85, 0.80, 0.65, 0.50, 0.35, 0.35],
+        'E': [0.40, 0.45, 0.60, 0.75, 0.85, 0.95, 1.05, 1.00, 0.75, 0.60, 0.40, 0.40],
+        'SE': [0.50, 0.55, 0.70, 0.85, 0.95, 1.05, 1.15, 1.10, 0.85, 0.70, 0.50, 0.50],
+        'S': [0.50, 0.60, 0.85, 1.05, 1.20, 1.10, 0.80, 0.90, 1.00, 0.85, 0.60, 0.50],
+        'SW': [0.50, 0.55, 0.70, 0.85, 0.95, 1.05, 1.15, 1.10, 0.85, 0.70, 0.50, 0.50],
+        'W': [0.40, 0.45, 0.60, 0.75, 0.85, 0.95, 1.05, 1.00, 0.75, 0.60, 0.40, 0.40],
+        'NW': [0.35, 0.40, 0.50, 0.60, 0.70, 0.80, 0.85, 0.80, 0.65, 0.50, 0.35, 0.35]
+    };
+    
+    // Get base factor (direct + diffuse components)
+    const orientationFactor = monthlyOrientationFactors[orientation][month];
+    
+    // Diffuse component portion (already included in orientationFactor)
+    // For shading calculation, we need to estimate the direct portion
+    // Assumption: direct portion ≈ 60%, diffuse portion ≈ 40% of the orientation factor
+    // This is a reasonable approximation for mid-latitudes
+    return orientationFactor;
+}
+
+// Calculate vertical ET0 for each month
+function calculateVerticalGreeningResults() {
+    // Don't reset - keep previous results until new calculation succeeds
+    
+    // Check if we have the required data
+    if (!currentCity || !currentClimateData) {
+        const tableBody = document.getElementById('vgResultsTableBodyInResults');
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="8">Error: Please select a city first to load climate data. Current city: ' + (currentCity || 'none') + ', Climate data loaded: ' + (currentClimateData ? 'yes' : 'no') + '</td></tr>';
+        }
+        alert('Please select a city first to load climate data.');
+        return;
+    }
+    
+    // Get input values
+    const orientation = elements.vgOrientation ? elements.vgOrientation.value : 'S';
+    const system = elements.vgSystem ? elements.vgSystem.value : 'trough';
+    const customKf = elements.vgCustomKf && elements.vgCustomKf.style.display === 'block' ? parseFloat(elements.vgCustomKf.value) || 1.0 : null;
+    const shading = elements.vgShading ? elements.vgShading.value : 'none';
+    const albedoType = elements.vgAlbedo ? elements.vgAlbedo.value : '0.22';
+    const customAlbedo = elements.vgCustomAlbedo && elements.vgCustomAlbedo.style.display === 'block' ? parseFloat(elements.vgCustomAlbedo.value) || 0.22 : null;
+    const wallArea = elements.vgWallArea ? parseFloat(elements.vgWallArea.value) || 50 : 50;
+    const roofOverhang = elements.vgRoofOverhang ? elements.vgRoofOverhang.value === 'yes' : false;
+    const plant = elements.vgPlant ? elements.vgPlant.value : 'hedera_helix';
+    
+    // Get city coordinates for latitude
+    const coords = cityCoordinates[currentCity];
+    if (!coords) {
+        alert('City coordinates not found for Vertical Greening calculation. Please select a city with defined coordinates.');
+        // Also show error in both tables
+        const vgTable1 = document.getElementById('vgResultsTableBody');
+        const vgTable2 = document.getElementById('vgResultsTableBodyInResults');
+        if (vgTable1) vgTable1.innerHTML = '<tr><td colspan="8">Error: City coordinates not found. Vertical Greening requires city coordinates for orientation calculations.</td></tr>';
+        if (vgTable2) vgTable2.innerHTML = '<tr><td colspan="8">Error: City coordinates not found. Vertical Greening requires city coordinates for orientation calculations.</td></tr>';
+        return;
+    }
+    const latitude = coords.latitude;
+    
+    // Get Kf value
+    let kf = customKf !== null ? customKf : vgSystemKfValues[system];
+    if (kf === undefined) kf = 1.0;
+    
+    // Get albedo value
+    let albedo = customAlbedo !== null ? customAlbedo : vgAlbedoValues[albedoType];
+    if (albedo === undefined) albedo = 0.22;
+    
+    // Get shading factor
+    const shadingFactor = vgShadingFactors[shading] || 1.0;
+    
+    // Get efficiency
+    const efficiency = vgEfficiencyValues[system] || 0.85;
+    
+    // Get plant Kc values - use monthly profile
+    let kcValues;
+    const plantId = plant || 'hedera_helix';
+    
+    if (plantId === 'custom_kc' && elements.vgCustomKcValue) {
+        // Parse custom Kc input
+        const customInput = elements.vgCustomKcValue.value.trim();
+        if (customInput) {
+            const parts = customInput.split(',').map(p => parseFloat(p.trim())).filter(p => !isNaN(p));
+            if (parts.length === 12) {
+                kcValues = parts; // Use all 12 values
+            } else if (parts.length === 1) {
+                kcValues = Array(12).fill(parts[0]); // Use single value for all months
+            } else {
+                kcValues = Array(12).fill(0.7); // Default
+            }
+        } else {
+            kcValues = Array(12).fill(0.7); // Default if no custom input
+        }
+    } else {
+        // Get monthly profile from data.js, handling hemisphere
+        const profile = getMonthlyKcProfile(plantId, latitude);
+        if (profile) {
+            kcValues = profile;
+        } else {
+            // Fallback: use avgKc from plantDatabase or default
+            const plantData = plantDatabase.find(p => p.id === plantId);
+            const avgKc = plantData?.avgKc || 0.7;
+            kcValues = Array(12).fill(avgKc);
+        }
+    }
+    
+    // Get climate data
+    const et0Data = currentClimateData.slice(12, 24); // ET0 values (mm)
+    const rainData = currentClimateData.slice(0, 12);   // Rain values (mm)
+    
+    // Calculate rain factor for vertical surfaces
+    // Rain effectiveness on vertical surfaces is reduced compared to horizontal surfaces
+    // Standard factor: 0.2 for vertical walls (only 20% of rainfall is effective)
+    // If roof overhang is present, reduce to 0 (upper wall protected)
+    const rainFactor = roofOverhang ? 0 : 0.2;
+    
+    // Calculate monthly results
+    const monthlyResults = [];
+    let annualWater = 0;
+    let peakMonth = '';
+    let peakNeed = 0;
+    let peakMonthIndex = 0;
+    
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    for (let m = 0; m < 12; m++) {
+        // Calculate orientation factor for this month (direct + diffuse components)
+        const f_or_base = calculateOrientationFactors(orientation, latitude, m);
+        
+        // Apply shading to direct component only
+        // Assumption: direct portion ≈ 60%, diffuse portion ≈ 40% of the base orientation factor
+        // This is a reasonable approximation for mid-latitudes
+        const directPortion = 0.6; 
+        const diffusePortion = 1 - directPortion;
+        
+        // Calculate effective orientation factor with shading
+        // Shading only affects the direct portion
+        const f_or_effective = (f_or_base * directPortion * shadingFactor) + (f_or_base * diffusePortion);
+        
+        // Add albedo (ground reflection) component
+        // Albedo contribution: Albedo × 0.5 (lower facade half) × 0.5 (view factor) = Albedo × 0.25
+        // This represents reflected radiation from the ground reaching the lower part of the facade
+        const albedoComponent = albedo * 0.25; // Geometric factor for ground reflection
+        
+        // Total vertical ET0 factor: orientation factor + ground reflection
+        const f_or_total = f_or_effective + albedoComponent;
+        
+        // Calculate vertical ET0
+        const et0_vert = et0Data[m] * f_or_total;
+        
+        // Calculate ETc_vert
+        const kc = kcValues[m];
+        const etc_vert = et0_vert * kc * kf;
+        
+        // Calculate effective rain
+        const p_eff = rainData[m] * 0.8 * rainFactor;
+        
+        // Calculate net irrigation
+        const net = Math.max(etc_vert - p_eff, 0);
+        
+        // Calculate irrigation volume in L/m²
+        const v_irr = net / efficiency;
+        
+        // Calculate total for the wall area
+        const totalLitres = v_irr * wallArea;
+        
+        monthlyResults.push({
+            month: months[m],
+            monthFull: monthsFull[m],
+            monthIndex: m,
+            et0: et0Data[m].toFixed(1),
+            et0_vert: et0_vert.toFixed(1),
+            kc: kc.toFixed(2),
+            kf: kf.toFixed(2),
+            etc_vert: etc_vert.toFixed(1),
+            p_eff: p_eff.toFixed(1),
+            v_irr: v_irr.toFixed(1),
+            totalLitres: totalLitres.toFixed(0)
+        });
+        
+        annualWater += totalLitres;
+        if (totalLitres > peakNeed) {
+            peakNeed = totalLitres;
+            peakMonth = months[m];
+            peakMonthIndex = m;
+        }
+    }
+    
+    // Validate we have complete monthly data before storing
+    if (!monthlyResults || monthlyResults.length !== 12) {
+        console.error('Vertical Greening: monthlyResults incomplete. Length:', monthlyResults ? monthlyResults.length : 'null');
+        const tableBody = document.getElementById('vgResultsTableBodyInResults');
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="8">Error: Incomplete monthly data. monthlyResults length: ' + (monthlyResults ? monthlyResults.length : 'null') + '</td></tr>';
+        }
+        verticalGreeningResults = null;
+        return;
+    }
+    
+    // Store results for display in Results tab only
+    verticalGreeningResults = {
+        annualWater: annualWater,
+        peakMonth: peakMonth,
+        peakMonthName: monthsFull[peakMonthIndex],
+        peakNeed: peakNeed,
+        wallArea: wallArea,
+        monthlyData: monthlyResults
+    };
+    
+    // Update display in Vertical Greening tab only
+    displayVerticalGreeningResults();
+    
+    // Calculate watering plan for vertical greening
+    calculateWateringPlan(monthlyResults, peakMonthIndex, wallArea, plant);
 }
 
 // Language management removed - English only version

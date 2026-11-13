@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="AquaCalc - FAO-56 Water Demand Calculator for landscape architects and gardeners">
-    <meta name="keywords" content="irrigation, water, FAO-56, evapotranspiration, landscape, gardening, calculator">
+    <meta name="description" content="AquaCalc - FAO-56 Water Demand Calculator for landscape architects and gardeners with Vertical Greening support">
+    <meta name="keywords" content="irrigation, water, FAO-56, evapotranspiration, landscape, gardening, calculator, vertical greening, facade greening">
     <meta name="author" content="Max Poiss">
     
-    <title>AquaCalc - FAO-56 Water Demand Calculator</title>
+    <title>AquaCalc v2.7 - FAO-56 Water Demand Calculator with Vertical Greening</title>
     
     <!-- Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -17,9 +17,24 @@
     
     <!-- Main stylesheet -->
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .tab-container {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+        .tab-separator {
+            margin: 0 8px;
+            color: var(--text-secondary);
+            font-weight: normal;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+        }
+    </style>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236b9e7a'/><text x='50' y='70' font-family='serif' font-size='70' fill='white' text-anchor='middle'>A</text></svg>">
 </head>
 <body>
     <div class="container">
@@ -28,16 +43,20 @@
             <h1>AquaCalc</h1>
             <p class="subtitle">FAO-56 Species and Site-Specific Water Demand Calculator</p>
             <div class="header-controls">
-                <button id="themeToggle" class="control">Toggle Dark Mode</button>
                 <button id="infoToggle" class="control">Info</button>
             </div>
         </header>
 
         <!-- Tab Navigation -->
         <div class="tab-container">
-            <button class="tab active" data-tab="site">Site</button>
-            <button class="tab" data-tab="plant">Plant</button>
+            <button class="tab active" data-tab="site">Site Selection</button>
+            <span class="tab-separator">→</span>
+            <button class="tab" data-tab="plant">Horizontal Planting</button>
+            <span class="tab-separator">or</span>
+            <button class="tab" data-tab="verticalGreening">Vertical Greening</button>
+            <span class="tab-separator">→</span>
             <button class="tab" data-tab="results">Results</button>
+            <span class="tab-separator">→</span>
             <button class="tab" data-tab="projects">Projects</button>
         </div>
 
@@ -83,16 +102,17 @@
                 <div class="climate-card" id="climateCard" style="display: none;">
                     <h3>Climate Data</h3>
                     <div id="climateInfo"></div>
+                    <p class="table-description">ET<sub>0</sub> = Reference Evapotranspiration (Penman-Monteith FAO-56) | Rain = Monthly precipitation</p>
                     <div class="chart-container">
                         <canvas id="climateChart"></canvas>
                     </div>
                     <div class="table-container">
                         <table id="climateTable">
-                            <thead>
+                            <thead style="background-color: var(--accent); color: var(--off-white);">
                                 <tr>
-                                    <th>Month</th>
-                                    <th>ET₀ (mm)</th>
-                                    <th>Rain (mm)</th>
+                                    <th>MONTH</th>
+                                    <th>ET<sub>0</sub> (MM)</th>
+                                    <th>RAIN (MM)</th>
                                 </tr>
                             </thead>
                             <tbody id="climateData"></tbody>
@@ -102,38 +122,17 @@
             </div>
         </div>
 
-        <!-- Plant Tab -->
+        <!-- Horizontal Planting Tab -->
         <div class="tab-content" id="plantTab">
             <div class="form-section">
-                <h2>Plant Selection</h2>
+                <h2>Horizontal Planting</h2>
                 <p>Choose what you're planting and its growing conditions.</p>
-                
-                <!-- Quick Presets -->
-                <div class="form-group">
-                    <label>Quick Presets</label>
-                    <div class="preset-buttons" id="presetButtons">
-                        <button class="preset-btn" data-preset="street_trees">Street & Shade Trees</button>
-                        <button class="preset-btn" data-preset="conifers">Conifers</button>
-                        <button class="preset-btn" data-preset="climbers">Climbers / Facade</button>
-                        <button class="preset-btn" data-preset="hedges">Hedges & Shrubs</button>
-                        <button class="preset-btn" data-preset="ground_cover">Ground Cover</button>
-                        <button class="preset-btn" data-preset="ornamental_grasses">Ornamental Grasses</button>
-                        <button class="preset-btn" data-preset="perennials_wet">Wet Perennials</button>
-                        <button class="preset-btn" data-preset="perennials_medium">Medium Perennials</button>
-                        <button class="preset-btn" data-preset="perennials_dry">Dry Perennials</button>
-                        <button class="preset-btn" data-preset="lawn">Lawn</button>
-                        <button class="preset-btn" data-preset="seasonal_bedding">Seasonal Bedding</button>
-                        <button class="preset-btn" data-preset="grapevines">Grapevines</button>
-                    </div>
-                    <div id="presetInfo" class="preset-info"></div>
-                </div>
 
-                <!-- Plant Search -->
+                <!-- Plant Selection -->
                 <div class="form-group">
-                    <label for="plantSearch">Search Plant (Common or Botanical Name)</label>
-                    <input type="text" id="plantSearch" class="form-control" placeholder="e.g., Tilia cordata, Lavandula, Sedum, Wheat, Maize">
-                    <select id="plantSelect" class="form-control" size="6" style="margin-top: 10px;">
-                        <option value="">Type to search or select from presets...</option>
+                    <label>PLANT SELECTION</label>
+                    <select id="plantSelect" class="form-control">
+                        <option value="">Select a plant from the dropdown...</option>
                     </select>
                 </div>
 
@@ -168,13 +167,190 @@
             </div>
         </div>
 
+        <!-- Vertical Greening Tab -->
+        <div class="tab-content" id="verticalGreeningTab">
+            <div class="form-section">
+                <h2>Vertical Greening / Facade Irrigation</h2>
+                <p>Calculate water demand for vertical greening systems with facade orientation, system type, and solar radiation factors.</p>
+                <div class="alert" id="vgCityWarning" style="display: none; margin-bottom: 20px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">
+                    <strong>⚠️ Please select a city first:</strong> Go to the <strong>Site</strong> tab and select a city to load climate data before using Vertical Greening calculations.
+                </div>
+
+                <!-- Plant Selection -->
+                <div class="form-group">
+                    <label>CLIMBING PLANT TYPE</label>
+                    <select id="vgPlant" class="form-control">
+                        <option value="">Select a plant from the dropdown...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="vgCustomKcGroup" style="display: none;">
+                    <label for="vgCustomKcValue">Custom Kc Value(s)</label>
+                    <input type="text" id="vgCustomKcValue" class="form-control" placeholder="e.g., 0.75 or 0.6,0.7,0.8,0.9,1.0,1.1,1.0,0.9,0.8,0.7,0.6,0.55">
+                    <small class="help-text">Enter a single Kc value for all months, or 12 comma-separated values for monthly profile (Jan-Dec).</small>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="vgOrientation">Facade Orientation</label>
+                            <select id="vgOrientation" class="form-control">
+                                <option value="N">North</option>
+                                <option value="NE">North-East</option>
+                                <option value="E">East</option>
+                                <option value="SE">South-East</option>
+                                <option value="S" selected>South</option>
+                                <option value="SW">South-West</option>
+                                <option value="W">West</option>
+                                <option value="NW">North-West</option>
+                            </select>
+                            <small class="help-text">Direction the facade faces. South receives most direct radiation, North mostly diffuse.</small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="vgSystem">Greening System (Kf factor)</label>
+                            <select id="vgSystem" class="form-control">
+                                <option value="soil">Soil-based (Kf ≈ 0.9)</option>
+                                <option value="trough" selected>Wall-mounted trough system (Kf ≈ 1.0)</option>
+                                <option value="living_wall">Living Wall Panels (Kf ≈ 1.15-1.3)</option>
+                                <option value="custom">Custom Kf value</option>
+                            </select>
+                            <small class="help-text">Kf (System Factor): accounts for system-specific water demands. Soil-based: 0.9 (good water retention), Trough: 1.0 (standard), Living Wall Panels: 1.15-1.3 (higher evaporation from exposed substrate).</small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="vgCustomKf">Custom Kf Value</label>
+                            <input type="number" id="vgCustomKf" class="form-control" step="0.01" min="0.5" max="2.0" placeholder="Enter Kf">
+                            <small class="help-text">Override system Kf factor if needed.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="vgShading">Shading from Opposite Buildings</label>
+                            <select id="vgShading" class="form-control">
+                                <option value="none" data-factor="1.0" selected>None</option>
+                                <option value="light" data-factor="0.75">Light</option>
+                                <option value="medium" data-factor="0.5">Medium</option>
+                                <option value="heavy" data-factor="0.25">Heavy</option>
+                            </select>
+                            <small class="help-text">Reduction factor for direct solar radiation: None = 1.0 (no reduction), Light = 0.75 (25% reduction), Medium = 0.5 (50% reduction), Heavy = 0.25 (75% reduction). Only affects direct component.</small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="vgAlbedo">Ground Cover Albedo</label>
+                            <select id="vgAlbedo" class="form-control">
+                                <option value="0.15">Asphalt (≈ 0.15)</option>
+                                <option value="0.30">Concrete/Paving (≈ 0.30)</option>
+                                <option value="0.22" selected>Grass/Vegetation (≈ 0.20-0.25)</option>
+                                <option value="custom">Custom value</option>
+                            </select>
+                            <small class="help-text">Reflectivity of ground surface. Higher albedo = more reflected radiation reaching lower facade.</small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="vgCustomAlbedo">Custom Albedo</label>
+                            <input type="number" id="vgCustomAlbedo" class="form-control" step="0.01" min="0" max="1" placeholder="0.0-1.0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="vgWallArea">Wall Area (m²)</label>
+                            <input type="number" id="vgWallArea" class="form-control" step="0.1" min="1" max="10000" value="50">
+                            <small class="help-text">Total area of vertical greening.</small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="vgRoofOverhang">Roof Overhang</label>
+                            <select id="vgRoofOverhang" class="form-control">
+                                <option value="no" selected>No</option>
+                                <option value="yes">Yes</option>
+                            </select>
+                            <small class="help-text">Roof overhang protects upper wall area from direct rainfall, reducing effective precipitation.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="calculateVerticalGreeningResults()" id="calculateVerticalGreening">Calculate Vertical Greening</button>
+
+                <!-- Vertical Greening Results -->
+                <div id="vgResults" style="display: none; margin-top: 30px; border-top: 1px solid var(--border); padding-top: 20px;">
+                    <div class="results-grid" id="vgResultsGrid">
+                        <div class="result-card">
+                            <h3>Annual Water Need</h3>
+                            <div class="result-value" id="vgAnnualWater">-</div>
+                            <p>litres</p>
+                        </div>
+                        <div class="result-card">
+                            <h3>Peak Month</h3>
+                            <div class="result-value" id="vgPeakMonth">-</div>
+                            <p id="vgPeakMonthName">-</p>
+                        </div>
+                        <div class="result-card">
+                            <h3>Peak Month Need</h3>
+                            <div class="result-value" id="vgPeakNeed">-</div>
+                            <p>litres</p>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container" style="margin-top: 20px; height: 400px;">
+                        <canvas id="vgMonthlyChart"></canvas>
+                    </div>
+                    <p class="table-description"><strong>ET<sub>c</sub> (Crop Evapotranspiration):</strong> The amount of water evaporated from soil and transpired by plants.</p>
+                    
+                    <div class="form-group">
+                        <h3>MONTHLY WATER BALANCE TABLE</h3>
+                        <p class="table-description">Parameters: ET<sub>c</sub> = ET<sub>0</sub> × K<sub>c</sub> × Situation Factor | Effective Rain = Rain × 0.8 × Situation Rain Factor | Net = ET<sub>c</sub> - Effective Rain (minimum 0)</p>
+                        <div class="table-container">
+                            <table>
+                                <thead style="background-color: var(--accent); color: var(--off-white);">
+                                    <tr>
+                                        <th>MONTH</th>
+                                        <th>ET<sub>0</sub> (MM)</th>
+                                        <th>K<sub>C</sub></th>
+                                        <th>ET<sub>C</sub> (MM)</th>
+                                        <th>RAIN (MM)</th>
+                                        <th>EFFECTIVE RAIN (MM)</th>
+                                        <th>NET (MM)</th>
+                                        <th>LITRES</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vgResultsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
         <!-- Results Tab -->
         <div class="tab-content" id="resultsTab">
             <div class="form-section">
-                <h2>Calculation Results</h2>
-                <p>Water demand based on FAO-56 Penman-Monteith method.</p>
+                <h2 id="resultsTitle">Horizontal Planting Results</h2>
+                <p id="resultsDescription">Water demand based on FAO-56 Penman-Monteith method: ET<sub>c</sub> = ET<sub>0</sub> × K<sub>c</sub> × situation factors. Effective rain = rainfall × 0.8 × situation rain factor. Net irrigation = ET<sub>c</sub> - effective rain (minimum 0).</p>
                 
-                <!-- Main Results -->
+                <!-- View Toggle -->
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label>View Results For:</label>
+                    <div class="toggle-group">
+                        <button class="toggle-btn active" id="viewHorizontal" data-view="horizontal">Horizontal Planting</button>
+                        <button class="toggle-btn" id="viewVertical" data-view="vertical">Vertical Greening</button>
+                    </div>
+                </div>
+
+                <!-- Main Results (Horizontal Planting) -->
                 <div class="results-grid" id="mainResults">
                     <div class="result-card">
                         <h3>Annual Water Need</h3>
@@ -200,26 +376,74 @@
 
                 <!-- Results Table -->
                 <div class="form-group">
-                    <label>Monthly Water Balance Table</label>
-                    <small class="help-text">ETc = ET₀ × Kc × Situation Factor | Effective Rain = Rain × 0.8 × Situation Rain Factor | Net = ETc - Effective Rain (minimum 0)</small>
+                    <h3>Monthly Water Balance Table</h3>
+                    <p class="table-description">Parameters: ET<sub>c</sub> = ET<sub>0</sub> × K<sub>c</sub> × Situation Factor | Effective Rain = Rain × 0.8 × Situation Rain Factor | Net = ET<sub>c</sub> - Effective Rain (minimum 0)</p>
                     <div class="table-container">
                         <table id="resultsTable">
-                            <thead>
+                            <thead style="background-color: var(--accent); color: var(--off-white);">
                                 <tr>
-                                    <th>Month</th>
-                                    <th>ET₀ (mm)</th>
-                                    <th>Kc</th>
-                                    <th>ETc (mm)</th>
-                                    <th>Rain (mm)</th>
-                                    <th>Effective Rain (mm)</th>
-                                    <th>Net (mm)</th>
-                                    <th>Litres</th>
+                                    <th>MONTH</th>
+                                    <th>ET<sub>0</sub> (MM)</th>
+                                    <th>K<sub>C</sub></th>
+                                    <th>ET<sub>C</sub> (MM)</th>
+                                    <th>RAIN (MM)</th>
+                                    <th>EFFECTIVE RAIN (MM)</th>
+                                    <th>NET (MM)</th>
+                                    <th>LITRES</th>
                                 </tr>
                             </thead>
                             <tbody id="resultsTableBody">
                                 <tr><td colspan="8">Select city and plant to see results...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Vertical Greening Results Section (shown when viewVertical is active) -->
+                <div id="vgResultsInResults" style="display: none; margin-top: 30px; border-top: 2px solid var(--border-color); padding-top: 20px;">
+                    <div class="results-grid" id="vgResultsGridInResults">
+                        <div class="result-card">
+                            <h3>Annual Water Need</h3>
+                            <div class="result-value" id="vgAnnualWaterResults">-</div>
+                            <p>litres</p>
+                        </div>
+                        <div class="result-card">
+                            <h3>Peak Month</h3>
+                            <div class="result-value" id="vgPeakMonthResults">-</div>
+                            <p id="vgPeakMonthNameResults">-</p>
+                        </div>
+                        <div class="result-card">
+                            <h3>Peak Month Need</h3>
+                            <div class="result-value" id="vgPeakNeedResults">-</div>
+                            <p>litres</p>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container" style="margin-top: 20px; height: 400px;">
+                        <canvas id="vgMonthlyChartResults"></canvas>
+                    </div>
+                    <p class="table-description"><strong>ET<sub>c</sub> (Crop Evapotranspiration):</strong> The amount of water evaporated from soil and transpired by plants. ET<sub>c,vert</sub> = ET<sub>0,vert</sub> × K<sub>c</sub> × K<sub>f</sub> | Net = ET<sub>c,vert</sub> - P<sub>eff</sub>. Orientation factors vary monthly based on solar geometry.</p>
+                    
+                    <div class="form-group">
+                        <h3>Monthly Vertical Greening Data</h3>
+                        <div class="table-container">
+                            <table>
+                                <thead style="background-color: var(--accent); color: var(--off-white);">
+                                    <tr>
+                                        <th>MONTH</th>
+                                        <th>ET<sub>0,VERT</sub> (MM)</th>
+                                        <th>K<sub>C</sub></th>
+                                        <th>K<sub>F</sub></th>
+                                        <th>ET<sub>C,VERT</sub> (MM)</th>
+                                        <th>P<sub>EFF</sub> (MM)</th>
+                                        <th>NET (MM)</th>
+                                        <th>LITRES</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vgResultsTableBodyInResults">
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -255,8 +479,8 @@
 
                 <!-- Export Buttons -->
                 <div class="export-buttons">
-                    <button id="exportPDF" class="btn">📄 Export to PDF</button>
-                    <button id="exportExcel" class="btn">📊 Export to Excel</button>
+                    <button id="exportPDF" class="btn">Export to PDF</button>
+                    <button id="exportExcel" class="btn">Export to Excel</button>
                 </div>
             </div>
         </div>
@@ -331,76 +555,104 @@
 
         <!-- Info Panel -->
         <div class="info-panel" id="infoPanel">
-            <button class="close-btn" id="closeInfo">&times;</button>
-            <div class="info-content">
-                <h2>AquaCalc</h2>
-                <p><strong>FAO-56 Species and Site-Specific Water Demand Calculator</strong></p>
-                
-                <h3>About</h3>
-                <p>AquaCalc calculates irrigation water requirements using the FAO-56 Penman-Monteith method. It provides planning estimates for landscape and urban greening projects, as well as agricultural crops.</p>
+            <button class="close-btn" id="closeInfoBtn">&times;</button>
+            <div class="info-content" id="infoContent">
+                <h2>AquaCalc v2.7</h2>
+                <p class="info-subtitle">FAO-56 Species and Site-Specific Water Demand Calculator with Vertical Greening</p>
 
-                <h3>How It Works</h3>
-                <p><strong>Crop water use:</strong> ETc = ET₀ × Kc × situation demand factor</p>
-                <p><strong>Effective rain:</strong> Rainfall × 0.8 × situation rain factor</p>
-                <p><strong>Net irrigation:</strong> ETc - Effective Rain (never below zero)</p>
-                <p><strong>Unit conversion:</strong> 1 mm over 1 m² = 1 litre</p>
+                <div class="info-section">
+                    <h3>About</h3>
+                    <p>AquaCalc calculates irrigation water requirements using the FAO-56 Penman-Monteith method. It provides planning estimates for landscape, urban greening, and agricultural projects.</p>
+                    <p>Climate data is sourced from Open-Meteo API (ERA5 reanalysis) with selectable time periods (5, 10, or 30 years).</p>
+                </div>
 
-                <h3>Demand and Rain Factors</h3>
-                <ul>
-                    <li><strong>Open:</strong> Demand: 1.0, Rain: 1.0</li>
-                    <li><strong>Against a Wall:</strong> Demand: 1.15, Rain: 0.75 (increased heat reflection)</li>
-                    <li><strong>Under an Overhang:</strong> Demand: 1.0, Rain: 0.3 (reduced rainfall)</li>
-                    <li><strong>Roofed:</strong> Demand: 0.9, Rain: 0.0 (no rainfall)</li>
-                    <li><strong>Shaded / North Side:</strong> Demand: 0.7, Rain: 0.9 (reduced evapotranspiration)</li>
-                </ul>
+                <div class="info-section">
+                    <h3>Citation</h3>
+                    <p><small>Poiss, M. (2026) Aquacalc (Version 2.7) [Computer software]. Available at: <a href="https://diekmann-poiss.github.io/Aquacalc/" target="_blank">https://diekmann-poiss.github.io/Aquacalc/</a> (Accessed: DAY MONTH YEAR).</small></p>
+                </div>
 
-                <h3>Data Sources</h3>
-                <p><strong>Methodology:</strong></p>
-                <ul>
-                    <li>FAO Irrigation & Drainage Paper 56 (Allen et al., 1998)</li>
-                    <li>ASCE-EWRI standardized reference ET equation (2005)</li>
-                    <li>WUCOLS landscape water-use classification (Costello et al., UC Cooperative Extension)</li>
-                    <li>Doorenbos & Pruitt (1977)</li>
-                </ul>
-                
-                <p><strong>ET₀ Data:</strong> Open-Meteo API (ERA5 reanalysis)</p>
-                <p><strong>Rainfall Data:</strong> Open-Meteo API (ERA5 reanalysis)</p>
+                <div class="info-section">
+                    <h3>Horizontal Planting</h3>
+                    <p><strong>Method:</strong> ETc = ET₀ &times; Kc &times; situation demand factor</p>
+                    <p><strong>Effective rain:</strong> Rainfall &times; 0.8 &times; situation rain factor</p>
+                    <p><strong>Net irrigation:</strong> ETc &minus; Effective Rain (never below zero)</p>
+                    <p><strong>Unit conversion:</strong> 1 mm over 1 m&sup2; = 1 litre</p>
 
-                <p><strong>Kc Values:</strong> FAO-56, WUCOLS, and regionally adapted values for landscape plants.</p>
+                    <h4>Situation Factors</h4>
+                    <ul>
+                        <li><strong>Open:</strong> Demand: 1.0, Rain: 1.0</li>
+                        <li><strong>Against a Wall:</strong> Demand: 1.15, Rain: 0.75</li>
+                        <li><strong>Under an Overhang:</strong> Demand: 1.0, Rain: 0.3</li>
+                        <li><strong>Roofed:</strong> Demand: 0.9, Rain: 0.0</li>
+                        <li><strong>Shaded/North:</strong> Demand: 0.7, Rain: 0.9</li>
+                    </ul>
+                </div>
 
-                <h3>Note on Climate Data</h3>
-                <p>All climate data is sourced from the Open-Meteo API using ERA5 reanalysis data. Mean values can be selected for last 5, 10, or 30 years. This tool requires an internet connection to fetch climate data.</p>
+                <div class="info-section">
+                    <h3>Vertical Greening</h3>
+                    <p>Extends FAO-56 to vertical surfaces with monthly-resolved calculations for solar geometry, plant phenology, and microclimate effects.</p>
+                    <p><strong>Core equation:</strong> <code>V_irr(m) = max(0, ETc_vert(m) &minus; P_eff(m))</code></p>
 
-                <h3>Citation</h3>
-                <p><small>Poiss, M. (2026) Aquacalc (Version 2.5.4) [Computer software]. Available at: https://diekmann-poiss.github.io/Aquacalc/ (Accessed: DAY MONTH YEAR).</small></p>
+                    <h4>Key Parameters</h4>
+                    <ul>
+                        <li><strong>Facade Orientation:</strong> Dynamic monthly factors for solar radiation</li>
+                        <li><strong>System Factor (Kf):</strong> Soil-based: 0.9, Trough: 1.0, Living Wall: 1.15-1.3</li>
+                        <li><strong>Shading:</strong> None: 1.0, Light: 0.75, Moderate: 0.5, Heavy: 0.25</li>
+                        <li><strong>Ground Albedo:</strong> Asphalt: 0.15, Concrete: 0.30, Grass: 0.20-0.25</li>
+                        <li><strong>Effective Rain:</strong> ~20% of rainfall reaches vertical surfaces</li>
+                        <li><strong>Crop Coefficients:</strong> Monthly profiles for 35 climbing plants</li>
+                    </ul>
+                </div>
 
-                <h3>Irrigation Types</h3>
-                <ul>
-                    <li><strong>Drip Line:</strong> 5 days/week, flow rate: 1.6-2.4 L/min/emitter</li>
-                    
-                    <li><strong>Micro-Sprayer:</strong> 3 days/week, flow rate: 40-60 L/h/sprayer</li>
-                    <li><strong>Pop-up Sprinkler:</strong> 2 days/week, flow rate: 100-140 L/h/sprinkler</li>
-                </ul>
+                <div class="info-section">
+                    <h3>Data Sources</h3>
+                    <p><strong>Methodology:</strong> FAO-56, Doorenbos & Pruitt (1977), ASCE-EWRI (2005), WUCOLS</p>
+                    <p><strong>Solar Geometry:</strong> Duffie & Beckman (2013), Liu & Jordan (1960), Iqbal (1983)</p>
+                    <p><strong>Urban Microclimate:</strong> Oke (1987, 1988), Arya (2001)</p>
+                    <p><strong>Water Balance:</strong> Bass et al. (2003), Ottelé et al. (2011), Coma et al. (2016), Vox et al. (2017)</p>
+                </div>
 
-                <h3>Version</h3>
-                <p>2.5.4 - API-only version using Open-Meteo for all climate data, time period selection (5, 10, 30 years), functional exports, chart labels clarified as Water Depth (mm), API request caching, rate limit tracking (1000 requests/day), and automatic retry with exponential backoff</p>
+                <div class="info-section">
+                    <h3>Technical Details</h3>
+                    <p><strong>Irrigation Types:</strong> Drip: 1.6-2.4 L/min, Micro-Sprayer: 40-60 L/h, Sprinkler: 100-140 L/h</p>
+                    <p><strong>API Rate Limit:</strong> 1000 requests/day (Open-Meteo Free Tier)</p>
+                    <p><strong>Version:</strong> 2.7 with Vertical Greening support</p>
+                    <p><strong>Created by:</strong> Max Poiss, Diekmann & Poiss</p>
+                    <p><a href="https://github.com/diekmann-poiss/Aquacalc" target="_blank">GitHub Repository</a></p>
+                </div>
 
-                <h3>Created by</h3>
-                <p><strong>Max Poiss</strong></p>
-                <h3>Citation</h3>
-                <p>Poiss, M. (2026) Aquacalc (Version 2.5.4) [Computer software]. Available at: https://diekmann-poiss.github.io/Aquacalc/ (Accessed: 28 September 2026).</p>
-                
-                <h3>API Rate Limits</h3>
-                <p><strong>Open-Meteo Free Tier:</strong> 1000 requests per day. This tool tracks your usage and will warn you when approaching the limit. Data is cached to minimize API calls.</p>
-                
-                <h3>GitHub</h3>
-                <p>This app is designed to work on GitHub Pages. For more information, check the README.md file.</p>
+                <div class="info-section">
+                    <h3>Vertical Greening Formulas</h3>
+                    <p><strong>Verticalized Solar Radiation:</strong></p>
+                    <p>ET<sub>0,vert</sub>(m) = ET<sub>0</sub>(m) × F<sub>orient</sub>(m) × F<sub>shading</sub> + ET<sub>0</sub>(m) × F<sub>albedo</sub> × (1 - F<sub>shading</sub>)</p>
+                    <p><strong>Where:</strong></p>
+                    <ul>
+                        <li><strong>F<sub>orient</sub>(m):</strong> Monthly orientation factor based on solar geometry (N=0.3, NE=0.5, E=0.7, SE=0.9, S=1.0, SW=0.9, W=0.7, NW=0.5)</li>
+                        <li><strong>F<sub>shading</sub>:</strong> Direct radiation reduction factor from opposite buildings (None=1.0, Light=0.75, Medium=0.5, Heavy=0.25)</li>
+                        <li><strong>F<sub>albedo</sub>:</strong> Ground cover albedo (Asphalt=0.15, Concrete=0.30, Grass=0.20-0.25)</li>
+                    </ul>
+                    <p style="margin-top: var(--spacing-md);"><strong>Effective Precipitation for Vertical Surfaces:</strong></p>
+                    <p>P<sub>eff</sub>(m) = P(m) × 0.2 × (1 - F<sub>roof</sub>)</p>
+                    <p><strong>Where:</strong> F<sub>roof</sub> = 0.3 if roof overhang present, else 0</p>
+                    <p style="margin-top: var(--spacing-md);"><strong>Vertical Crop Water Demand:</strong></p>
+                    <p>ET<sub>c,vert</sub>(m) = ET<sub>0,vert</sub>(m) × K<sub>c</sub>(m) × K<sub>f</sub></p>
+                    <p><strong>Where:</strong> K<sub>f</sub> = System factor (Soil-based: 0.9, Trough: 1.0, Living Wall: 1.15-1.3)</p>
+                </div>
+
+                <div class="info-section scientific-sources">
+                    <h3>Scientific Sources</h3>
+                    <p><strong>Methodology:</strong> FAO-56 (Allen et al., 1998), Doorenbos & Pruitt (1977), ASCE-EWRI (2005), WUCOLS</p>
+                    <p><strong>Solar Geometry:</strong> Duffie & Beckman (2013), Liu & Jordan (1960), Iqbal (1983)</p>
+                    <p><strong>Urban Microclimate:</strong> Oke (1987, 1988), Arya (2001)</p>
+                    <p><strong>Water Balance:</strong> Bass et al. (2003), Ottelé et al. (2011), Coma et al. (2016), Vox et al. (2017)</p>
+                    <p><strong>Vertical Greening:</strong> Köhler (2008), Perini et al. (2011), Susorova et al. (2014), Coma et al. (2017)</p>
+                </div>
             </div>
         </div>
 
         <!-- Footer -->
         <footer>
-            <p>© 2026 | Created by Max Poiss | AquaCalc v2.5.4</p>
+            <p>© 2026 | Created by Max Poiss | AquaCalc v2.7</p>
         </footer>
     </div>
 
